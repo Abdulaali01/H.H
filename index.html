@@ -1,0 +1,3456 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تحليل البلاغات</title>
+
+<!-- xlsx-js-style for Excel export with colors -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+<!-- توليد PDF داخل الصفحة (يُستخدم في نسخة الرابط حيث الطباعة ممنوعة) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.container {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 25px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  backdrop-filter: blur(10px);
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 28px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+input[type="file"] {
+  padding: 12px 15px;
+  border: 2px dashed #3498db;
+  border-radius: 10px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+input[type="file"]:hover {
+  border-color: #2980b9;
+  background: #e3f2fd;
+}
+
+button {
+  padding: 12px 20px;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 3px;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
+.btn-main {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.btn-delay {
+  background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+}
+
+.btn-ontime {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+.btn-ontime.active, .btn-main.active { outline: 3px solid #ffd200; outline-offset: 2px; }
+
+.btn-all {
+  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+}
+
+.btn-pdf {
+  background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+}
+
+.btn-excel {
+  background: linear-gradient(135deg, #0f9b0f 0%, #3f5efb 100%);
+}
+
+.btn-attach2 {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #333;
+}
+
+/* ====== زر إنشاء وحفظ في المتصفح ====== */
+.btn-save {
+  background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+  color: #333;
+}
+
+.btn-clear {
+  background: linear-gradient(135deg, #757f9a 0%, #5d6b82 100%);
+}
+
+.save-box {
+  margin-top: 15px;
+  padding: 15px;
+  border: 2px solid #f7971e;
+  border-radius: 15px;
+  background: #fffaf0;
+}
+
+.save-box h3 {
+  text-align: center;
+  color: #2c3e50;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.file-label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.status-msg {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 8px;
+  display: none;
+}
+.status-msg.info { display: block; background: #e3f2fd; color: #1565c0; }
+.status-msg.success { display: block; background: #e8f5e9; color: #2e7d32; }
+.status-msg.error { display: block; background: #ffebee; color: #c62828; }
+
+.stats-bar {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  color: white;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* ====== أنماط الجدول في المتصفح ====== */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin-top: 20px;
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+th {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  color: #fff;
+  font-size: 13px;
+  padding: 15px 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 10px 6px;
+  text-align: center;
+  vertical-align: top;
+  width: 110px;
+  word-break: break-word;
+  transition: background 0.2s ease;
+}
+
+tr:hover td {
+  background: #f5f7fa;
+}
+
+.hours-row td {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%) !important;
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.hours-row td.delay {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+}
+
+.id-cell {
+  background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+  font-weight: bold;
+  font-size: 12px;
+  color: #2c3e50;
+}
+
+.standard-cell {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
+  min-width: 80px;
+  width: 80px;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.multiline {
+  line-height: 1.4;
+  font-size: 11px;
+  text-align: right;
+  max-height: 80px;
+  overflow: hidden;
+  padding: 5px;
+  background: #fafafa;
+  border-radius: 5px;
+}
+
+.time-box {
+  display: inline-block;
+  margin-top: 6px;
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.short {}
+.full { display: none; }
+
+/* ====== منطقة الطباعة المخفية ====== */
+#pdfPrintArea {
+  display: none;
+}
+
+/* ====== أنماط الطباعة المحسنة ====== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 2mm;
+  }
+
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .container {
+    display: none !important;
+  }
+
+  #pdfPrintArea {
+    display: block !important;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  #pdfPrintArea table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 8px !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+
+  #pdfPrintArea th {
+    background: #2c3e50 !important;
+    color: white !important;
+    font-size: 9px !important;
+    font-weight: bold !important;
+    padding: 4px 2px !important;
+    border: 0.5px solid #999 !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+  }
+
+  #pdfPrintArea td {
+    font-size: 7.5px !important;
+    font-weight: bold !important;
+    padding: 3px 2px !important;
+    border: 0.5px solid #ccc !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    vertical-align: top !important;
+    text-align: center !important;
+  }
+
+  #pdfPrintArea .pdf-id {
+    background: #ecf0f1 !important;
+    font-weight: bold !important;
+    font-size: 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea .pdf-std {
+    background: #f39c12 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea .pdf-hours {
+    background: #3498db !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea .pdf-hours-delay {
+    background: #e74c3c !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* الجزء العلوي أبيض - الجزء السفلي أحمر */
+  #pdfPrintArea .pdf-vlookup-top {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea .pdf-vlookup-bottom {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea .pdf-normal {
+    background: #fafafa !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    text-align: right !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* كل الأعمدة داخل عرض الورقة */
+  #pdfPrintArea table {
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+  #pdfPrintArea thead { display: table-header-group; }
+  #pdfPrintArea td, #pdfPrintArea td div {
+    width: auto !important;
+    font-size: var(--pdf-fs, 7.5px) !important;
+  }
+  #pdfPrintArea th { font-size: calc(var(--pdf-fs, 7.5px) + 1px) !important; }
+  /* البلاغ (صفين) ما ينقسم بين صفحتين */
+  #pdfPrintArea tbody.pdf-ticket { break-inside: avoid; page-break-inside: avoid; }
+  #pdfPrintArea tbody.pdf-mun-group { break-after: avoid; page-break-after: avoid; }
+  #pdfPrintArea td.pdf-mun {
+    background: #11998e !important;
+    color: #fff !important;
+    font-size: 10px !important;
+    text-align: right !important;
+    padding: 4px 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #pdfPrintArea h2 {
+    font-size: 12px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    margin-bottom: 5px !important;
+    color: #2c3e50 !important;
+  }
+}
+
+/* ====== بلاغ وقته المعياري حُدد من التصنيف التخصصي: الصف كامل أخضر فاتح ====== */
+tr.cat-row td,
+tr.cat-row td.id-cell,
+tr.cat-row td.standard-cell,
+tr.cat-row td.multiline,
+.hours-row.cat-row td,
+.hours-row.cat-row td.delay {
+  background: #C8F7C5 !important;
+  color: #1B5E20 !important;
+}
+tr.cat-row .time-box { background: #2E7D32; }
+
+@media print {
+  #pdfPrintArea tr.pdf-cat td,
+  #pdfPrintArea tr.pdf-cat td div {
+    background: #C8F7C5 !important;
+    color: #1B5E20 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+.dept-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 2px solid #11998e;
+  border-radius: 10px;
+  background: #f0fff8;
+  font-size: 14px;
+  font-weight: bold;
+  color: #2c3e50;
+  cursor: pointer;
+}
+.dept-filter input { width: 20px; height: 20px; cursor: pointer; }
+
+.time-filter {
+  margin-top: 12px;
+  padding: 12px;
+  border: 2px solid #11998e;
+  border-radius: 12px;
+  background: #f0fff8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+.time-filter input[type="number"],
+.time-filter select {
+  width: 90px;
+  padding: 8px;
+  border: 1px solid #11998e;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.storage-notice {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 8px;
+  margin: 5px;
+  font-size: 13px;
+  display: none;
+}
+.storage-notice.active { display: inline-block; }
+
+/* ====== نفس تنسيق الطباعة لتوليد PDF داخل الصفحة (نسخة الرابط) ====== */
+#pdfGenArea { position: fixed; left: -20000px; top: 0; width: 1120px; background: #fff; padding: 0; margin: 0; direction: rtl;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+#pdfGenArea .pdf-page { width: 1120px; background: #fff; padding: 6px; box-sizing: border-box; }
+#pdfGenArea {
+    display: block !important;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+#pdfGenArea table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 8px !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+#pdfGenArea th {
+    background: #2c3e50 !important;
+    color: white !important;
+    font-size: 9px !important;
+    font-weight: bold !important;
+    padding: 4px 2px !important;
+    border: 0.5px solid #999 !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-align: center !important;
+  }
+#pdfGenArea td {
+    font-size: 7.5px !important;
+    font-weight: bold !important;
+    padding: 3px 2px !important;
+    border: 0.5px solid #ccc !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    vertical-align: top !important;
+    text-align: center !important;
+  }
+#pdfGenArea .pdf-id {
+    background: #ecf0f1 !important;
+    font-weight: bold !important;
+    font-size: 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea .pdf-std {
+    background: #f39c12 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea .pdf-hours {
+    background: #3498db !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea .pdf-hours-delay {
+    background: #e74c3c !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+/* الجزء العلوي أبيض - الجزء السفلي أحمر */
+  #pdfGenArea .pdf-vlookup-top {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea .pdf-vlookup-bottom {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea .pdf-normal {
+    background: #fafafa !important;
+    font-weight: bold !important;
+    font-size: 7px !important;
+    text-align: right !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+/* كل الأعمدة داخل عرض الورقة */
+  #pdfGenArea table {
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+#pdfGenArea thead { display: table-header-group; }
+#pdfGenArea td, #pdfGenArea td div {
+    width: auto !important;
+    font-size: var(--pdf-fs, 7.5px) !important;
+  }
+#pdfGenArea th { font-size: calc(var(--pdf-fs, 7.5px) + 1px) !important; }
+/* البلاغ (صفين) ما ينقسم بين صفحتين */
+  #pdfGenArea tbody.pdf-ticket { break-inside: avoid; page-break-inside: avoid; }
+#pdfGenArea tbody.pdf-mun-group { break-after: avoid; page-break-after: avoid; }
+#pdfGenArea td.pdf-mun {
+    background: #11998e !important;
+    color: #fff !important;
+    font-size: 10px !important;
+    text-align: right !important;
+    padding: 4px 8px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+#pdfGenArea h2 {
+    font-size: 12px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    margin-bottom: 5px !important;
+    color: #2c3e50 !important;
+  }
+#pdfGenArea tr.pdf-cat td,
+  #pdfGenArea tr.pdf-cat td div {
+    background: #C8F7C5 !important;
+    color: #1B5E20 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+.app-toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 99999; max-width: 92vw;
+  background: #2c3e50; color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px; font-weight: bold;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3); display: none; text-align: center; }
+
+/* التلخيص: صفحة واحدة */
+@media print { #pdfPrintArea .pdf-summary table { table-layout: auto !important; } #pdfPrintArea .pdf-summary td, #pdfPrintArea .pdf-summary th { font-size: 9px !important; padding: 4px 2px !important; } }
+#pdfGenArea .pdf-summary table { table-layout: auto !important; }
+#pdfGenArea .pdf-summary td, #pdfGenArea .pdf-summary th { font-size: 10px !important; padding: 5px 2px !important; }
+
+/* الحروف العربية تتقطع في توليد PDF إذا فيه تباعد حروف — نلغيه */
+#pdfGenArea, #pdfGenArea * { letter-spacing: 0 !important; word-spacing: normal !important; text-transform: none !important;
+  font-family: Tahoma, Arial, sans-serif !important; text-rendering: optimizeLegibility; }
+@media print { #pdfPrintArea, #pdfPrintArea * { letter-spacing: 0 !important; text-transform: none !important; } }
+
+@media print { #pdfPrintArea .pdf-newpage { break-before: page; page-break-before: always; } }
+
+/* جدول التلخيص الأول: أكبر ويعبّي الصفحة الأولى */
+@media print {
+  #pdfPrintArea .pdf-summary table.sum-main th { font-size: 10px !important; padding: 8px 3px !important; }
+  #pdfPrintArea .pdf-summary table.sum-main td { font-size: 13px !important; padding: 9px 3px !important; }
+  #pdfPrintArea .pdf-summary table.sum-main tr:first-child > th:first-child, #pdfPrintArea .pdf-summary table.sum-main tr:nth-child(n+3) > td:first-child { width: 120px !important; min-width: 120px !important; }
+  #pdfPrintArea .pdf-summary h2 { font-size: 17px !important; margin-bottom: 10px !important; }
+}
+#pdfGenArea .pdf-summary table.sum-main th { font-size: 13px !important; padding: 10px 3px !important; }
+#pdfGenArea .pdf-summary table.sum-main td { font-size: 17px !important; padding: 11px 3px !important; }
+#pdfGenArea .pdf-summary table.sum-main tr:first-child > th:first-child, #pdfGenArea .pdf-summary table.sum-main tr:nth-child(n+3) > td:first-child { width: 140px !important; min-width: 140px !important; }
+#pdfGenArea .pdf-summary h2 { font-size: 19px !important; margin-bottom: 12px !important; }
+
+/* جدول التلخيص يتمدد ويعبّي الصفحة الأولى (بالطول أو بالعرض) */
+@media print {
+  body.sum-print #pdfPrintArea .pdf-summary table.sum-main { height: 240mm !important; }
+  body.sum-print #pdfPrintArea .pdf-summary table.sum-main td { font-size: 14px !important; }
+  body.sum-print #pdfPrintArea .pdf-summary table.sum-main th { font-size: 10px !important; }
+  body.sum-print-wide #pdfPrintArea .pdf-summary table.sum-main { height: 160mm !important; }
+}
+#pdfGenArea .pdf-summary table.sum-main { height: 690px !important; }
+
+/* ====== تقويم المقفولة المتأخرة ====== */
+.late-cal { flex-basis: 100%; max-width: 360px; margin: 6px auto 0; background: #fff; border: 1px solid #f1c6c1; border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(231,76,60,.15); padding: 10px 10px 8px; direction: rtl; font-family: Tahoma, Arial, sans-serif; }
+.late-cal .lc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.late-cal .lc-title { font-weight: bold; color: #2c3e50; font-size: 15px; text-align: center; }
+.late-cal .lc-sub { font-size: 11px; color: #c0392b; text-align: center; }
+.late-cal .lc-nav { background: #fdecea; color: #c0392b; border: none; border-radius: 8px; width: 34px; height: 30px; padding: 0; box-shadow: none; font-size: 16px; cursor: pointer; margin: 0; }
+.late-cal .lc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.late-cal .lc-dow { font-size: 10px; color: #7f8c8d; text-align: center; padding: 2px 0; font-weight: bold; }
+.late-cal .lc-day { position: relative; height: 40px; border-radius: 9px; background: #f7f9fa; color: #95a5a6; font-size: 13px;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
+.late-cal .lc-day.has { background: #fdecea; color: #c0392b; font-weight: bold; cursor: pointer; border: 1px solid #f5b7b1; }
+.late-cal .lc-day.has:hover { background: #fadbd8; }
+.late-cal .lc-day.sel, .late-cal .lc-day.sel:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+.late-cal .lc-day .lc-n { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); font-size: 10px; background: #e74c3c; color: #fff;
+  border-radius: 8px; padding: 0 5px; line-height: 14px; }
+.late-cal .lc-day.sel .lc-n { background: #fff; color: #e74c3c; }
+.late-cal .lc-day.today { outline: 2px solid #3498db; outline-offset: -2px; }
+.late-cal .lc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; color: #555; }
+.late-cal .lc-foot button { padding: 5px 10px; font-size: 11px; margin: 0; }
+
+.btn-lens { background: linear-gradient(135deg, #6c3483 0%, #a569bd 100%); }
+.btn-lens.active { outline: 3px solid #ffd200; outline-offset: 2px; }
+/* العلامة المائية: تتكرر في كل صفحة طباعة */
+.lens-wm { display: none; }
+@media print {
+  #pdfPrintArea .lens-wm { display: block; position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: 64px; font-weight: bold;
+    color: rgba(108,52,131,0.10) !important; transform: rotate(-25deg); z-index: 0; pointer-events: none; font-family: Tahoma, Arial, sans-serif; }
+}
+#pdfGenArea .pdf-page { position: relative; }
+#pdfGenArea .lens-wm-abs { position: absolute; top: 40%; left: 0; right: 0; text-align: center; font-size: 72px; font-weight: bold;
+  color: rgba(108,52,131,0.10); transform: rotate(-25deg); pointer-events: none; }
+</style>
+</head>
+
+<body>
+
+<div class="container no-print">
+  <h1>📊 نظام تحليل البلاغات</h1>
+
+  <div class="input-group">
+    <button class="btn-delay" onclick="showDelay()">🔴 عرض المتأخر</button>
+    <button class="btn-ontime" id="ontimeButton" onclick="showOnTime()">🟢 عرض غير المتأخر</button>
+    <button class="btn-all" onclick="showAll()">📋 عرض الكل</button>
+    <button class="btn-save" onclick="toggleSummary()">📊 تلخيص</button>
+    <button class="btn-lens" id="lensButton" onclick="pickLens(null)">🤖 بلدي لنس</button>
+    <span class="dept-filter" style="gap:6px;">
+      🔍 <input type="search" id="searchBox" placeholder="رقم البلاغ (مثلاً 207993)" inputmode="search"
+        style="width:200px;padding:8px;border:1px solid #11998e;border-radius:8px;font-size:14px;direction:ltr;text-align:right;"
+        oninput="onSearchInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();applySearch();}">
+      <button class="btn-clear" style="padding:8px 12px;" onclick="clearSearch()">✖</button>
+      <span id="searchInfo" class="file-label"></span>
+    </span>
+    <label class="dept-filter">
+      <input type="checkbox" id="excludeCleaning" onchange="pickDeptMode('other')">
+      بلاغات الإدارات ما عدا الإدارة العامة للنظافة
+    </label>
+    <label class="dept-filter">
+      <input type="checkbox" id="onlyCleaning" onchange="pickDeptMode('cleaning')">
+      بلاغات الإدارة العامة للنظافة فقط
+    </label>
+    <button class="btn-pdf" onclick="exportPDF()">📄 تصدير PDF</button>
+    <button class="btn-pdf" onclick="exportClosingPDF()">📄 PDF بانتظار التحقق من الإغلاق</button>
+    <label class="dept-filter" title="إذا أشّرت عليه: تظهر خانة التنبيهات، وكل بلاغ ينطبع في PDF أو ينصدّر Excel ينسجل له تنبيه (التاريخ والمتبقي)">
+      <input type="checkbox" id="recordAlertsBox" onchange="refreshView()">
+      🔔 سجّل تنبيه عند الطباعة / Excel
+    </label>
+    <div class="dept-filter" style="flex-wrap:wrap;gap:12px;">
+      <span>🖨️ في الطباعة وExcel أظهر:</span>
+      <label><input type="checkbox" id="showStatusBox" checked> الحالة</label>
+      <label><input type="checkbox" id="showNamesBox"> الأسماء</label>
+      <label><input type="checkbox" id="showDeptBox"> الإدارة قبل وبعد</label>
+      <label><input type="checkbox" id="showDatesBox" checked> التواريخ</label>
+    </div>
+    <button class="btn-pdf" onclick="exportAlertsPDF()">🔔 PDF سجل التنبيهات</button>
+    <button class="btn-excel" onclick="exportAlertsExcel()">🔔 Excel سجل التنبيهات</button>
+    <button class="btn-excel" onclick="exportExcel()">📗 تصدير Excel</button>
+  </div>
+
+  <!-- ====== بلدي لنس: بلاغات مصدرها Urbi حسب المتبقي ====== -->
+  <div id="lensChoice" class="time-filter" style="display:none;border-color:#6c3483;background:#f5eef8;">
+    <span class="file-label">🤖 بلدي لنس (مصدر البلاغ: Urbi) — المتبقي:</span>
+    <button class="btn-lens" id="lensA" onclick="pickLens('a')">أقل من 10 ساعات</button>
+    <button class="btn-lens" id="lensB" onclick="pickLens('b')">من 10 إلى أقل من 24</button>
+    <button class="btn-lens" id="lensC" onclick="pickLens('c')">24 ساعة وأكثر</button>
+    <button class="btn-delay" id="lensD" onclick="pickLens('d')">متأخرة</button>
+    <button class="btn-all" id="lensAll" onclick="pickLens(null)">الكل</button>
+    <button class="btn-pdf" onclick="exportLensPDF()">📄 PDF بلدي لنس (4 أقسام)</button>
+    <span id="lensInfo" class="file-label"></span>
+  </div>
+
+  <!-- ====== خيار المتأخر (يظهر عند الضغط على زر المتأخر) ====== -->
+  <div id="delayChoice" class="time-filter" style="display:none;border-color:#e74c3c;background:#fdecea;">
+    <span class="file-label">🔴 المتأخر — اختر:</span>
+    <button class="btn-delay" id="delayRecentButton" onclick="pickDelay(true)">📅 انقفلت متأخرة (حسب تاريخ الحل)</button>
+    <button class="btn-all" id="delayAllButton" onclick="pickDelay(false)">📋 كل المتأخر</button>
+    <div id="lateCal" class="late-cal" style="display:none;"></div>
+  </div>
+
+  <!-- ====== خيار غير المتأخر (يظهر عند الضغط على الزر) ====== -->
+  <div id="ontimeChoice" class="time-filter" style="display:none;">
+    <span class="file-label">🟢 غير المتأخر — اختر:</span>
+    <button class="btn-main" id="ontime48Button" onclick="pickOnTime(true)">⏳ المتبقي أقل من</button>
+    <label class="file-label"><input type="number" id="ontimeHours" min="0" step="any" value="48"> ساعة</label>
+    <button class="btn-all" id="ontimeAllButton" onclick="pickOnTime(false)">📋 كل غير المتأخر</button>
+    <label class="file-label">📂 مصدر الوقت المتبقي:
+      <select id="remainSource2" class="remain-src" onchange="pickRemainSource(this.value)" style="width:auto;">
+        <option value="both">الاثنين معاً (الثالث ثم المرجعي)</option>
+        <option value="ref">السجل والمرجعي</option>
+        <option value="remain">ملف الوقت المتبقي (الثالث)</option>
+      </select></label>
+  </div>
+
+  <!-- ====== وقت ورود البلاغ للإدارة (يظهر عند تحديد المربع) ====== -->
+  <div id="timeFilter" class="time-filter" style="display:none;">
+    <span class="file-label" id="remainLabel">⏳ المتبقي على المعياري لحظة الورود من الإدارة:</span>
+    <label class="file-label">من <input type="number" id="remainFrom" min="0" step="any" placeholder="1"> ساعة</label>
+    <label class="file-label">إلى أقل من <input type="number" id="remainTo" min="0" step="any" placeholder="30"> ساعة</label>
+    <button class="btn-main" onclick="applyTimeFilter()">🔍 فلترة</button>
+    <button class="btn-clear" onclick="clearTimeFilter()">مسح الوقت</button>
+    <label class="file-label">📂 مصدر الوقت المتبقي:
+      <select id="remainSource" class="remain-src" onchange="pickRemainSource(this.value)" style="width:auto;">
+        <option value="both">الاثنين معاً (الثالث ثم المرجعي)</option>
+        <option value="ref">السجل والمرجعي</option>
+        <option value="remain">ملف الوقت المتبقي (الثالث)</option>
+      </select></label>
+    <span id="filterCount" class="file-label"></span>
+  </div>
+
+  <!-- ====== إنشاء وحفظ في المتصفح (مطابقة سجل البلاغات مع الملف المرجعي) ====== -->
+  <div class="save-box">
+    <h3>💾 مطابقة سجل البلاغات مع الملف المرجعي</h3>
+    <div class="input-group">
+      <span class="file-label">سجل البلاغات:</span>
+      <input type="file" id="logInput" accept=".xlsx,.xls">
+      <span class="file-label">الملف المرجعي (اختياري):</span>
+      <input type="file" id="refInput" accept=".xlsx,.xls">
+      <span class="file-label">ملف الوقت المتبقي (اختياري):</span>
+      <input type="file" id="remainInput" accept=".xlsx,.xls" title="ملف المنصة اللي فيه «الوقت المتبقي» — يُستخدم في «غير المتأخر»">
+      <span id="remainSavedInfo" class="file-label" style="color:#11998e;"></span>
+      <button class="btn-excel" id="exportRemainButton" style="display:none;" onclick="exportRemainExcel()">📗 Excel ملف الوقت المتبقي</button>
+      <button class="btn-clear" id="clearRemainButton" style="display:none;" onclick="clearRemainSaved()">🗑️ مسح ملفات الوقت المتبقي</button>
+    </div>
+    <div class="input-group" style="margin-top:10px;">
+      <button class="btn-save" id="runButton">💾 إنشاء وحفظ في المتصفح</button>
+      <button class="btn-all" id="showSavedButton" style="display:none;" onclick="showSaved()">📂 عرض المحفوظ</button>
+      <button class="btn-clear" id="clearSavedButton">🗑️ مسح المحفوظ</button>
+      <span id="storageNotice" class="storage-notice">✅ تم تخزين الملف المرجعي في المتصفح</span>
+    </div>
+    <div id="statusMsg" class="status-msg"></div>
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display: none;">
+    <div class="stat-item">
+      <div class="stat-value" id="totalCount">0</div>
+      <div class="stat-label">إجمالي البلاغات</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="delayCount">0</div>
+      <div class="stat-label">البلاغات المتأخرة</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="onTimeCount">0</div>
+      <div class="stat-label">في الميعاد</div>
+    </div>
+  </div>
+</div>
+
+<!-- منطقة العرض في المتصفح -->
+<!-- ====== التلخيص ====== -->
+<div class="container no-print" id="summaryBox" style="display:none;">
+  <div style="text-align:center;margin-bottom:10px;">
+    <button class="btn-pdf" onclick="exportSummaryPDF()">📄 PDF التلخيص (صفحة واحدة)</button>
+    <button class="btn-excel" onclick="exportSummaryExcel()">📗 Excel التلخيص</button>
+    <label class="dept-filter"><input type="checkbox" id="showShiftCols" checked onchange="document.getElementById('summaryTable').innerHTML = summaryHTML()"> إظهار أعمدة «الباقي على بداية الدوام»</label>
+  </div>
+  <div id="summaryTable" style="overflow-x:auto;"></div>
+</div>
+
+<div class="container" id="displayArea">
+  <table id="resultTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div id="moreBox" class="no-print" style="display:none; text-align:center; margin-top:15px;">
+    <div id="moreInfo" class="file-label" style="margin-bottom:8px;"></div>
+    <button class="btn-all" onclick="showMore()">⬇️ عرض المزيد</button>
+  </div>
+</div>
+
+<!-- منطقة الطباعة المخفية -->
+<div id="pdfPrintArea"></div>
+
+<script>
+let lastResult = {};
+let delayMode = false;
+let currentView = "all";
+let ontimeUnder48 = false; /* غير المتأخر: true = المتبقي أقل من 48 ساعة فقط */
+/* عدد الساعات من المربع (الافتراضي 48) */
+function ontimeLimit() {
+  const v = parseFloat(document.getElementById('ontimeHours').value);
+  return isNaN(v) ? 48 : v;
+}
+
+/* ====== الجدول المخزن ====== */
+let storedTableData = [];
+let storedTableMap = {};
+/* ملف الوقت المتبقي (الزر الثالث): رقم البلاغ ← {remain, targetTs, std, mun, dept, status, simpleStatus} */
+let remainMap = {};
+let remainMeta = { name: "", at: 0 };   /* اسم ملف الوقت المتبقي ووقت إرفاقه */
+let alertsMap = {};                      /* سجل التنبيهات: رقم البلاغ ← [{at, remain}] (من طباعة PDF) */
+
+/* ====== رسائل داخل الصفحة (بدل alert — في الرابط alert ممنوع) ====== */
+let toastTimer = null;
+function showToast(msg, sticky) {
+  let el = document.getElementById('appToast');
+  if (!el) { el = document.createElement('div'); el.id = 'appToast'; el.className = 'app-toast'; document.body.appendChild(el); }
+  el.textContent = String(msg);
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  if (!sticky) toastTimer = setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+function hideToast() { const el = document.getElementById('appToast'); if (el) el.style.display = 'none'; }
+window.alert = function (m) { showToast(m); };
+
+/* ====== خدمات الرابط: إذا الأداة مفتوحة كرابط في Claude ======
+   downloads = تنزيل الملفات | db = حفظ دائم خاص بك | user = هويتك.
+   في الملف العادي ما تتوفر، فتشتغل الأداة بالطباعة والتنزيل والمتصفح مثل قبل */
+const CAP = { db: null, downloads: null, uid: null };
+const capsPromise = (async function () {
+  try {
+    if (window.claude && typeof window.claude.use === "function") {
+      const res = await Promise.all([window.claude.use("downloads"), window.claude.use("db"), window.claude.use("user")]);
+      CAP.downloads = res[0] || null;
+      CAP.db = res[1] || null;
+      if (CAP.db && res[2]) { try { CAP.uid = await res[2].id(); } catch (e) {} }
+      if (!CAP.uid) CAP.db = null;
+    }
+  } catch (e) {}
+})();
+function hasRemainFile() { return remainMap && Object.keys(remainMap).length > 0; }
+
+/* اختيار مصدر الوقت المتبقي: «ref» = السجل والمرجعي (كما هو) | «remain» = ملف الوقت المتبقي */
+/* «both» = الاثنين معاً: من الملف الثالث، وإن ما لقاه فمن السجل والمرجعي */
+let remainSourceChoice = "both";
+function useRemainFile() { return hasRemainFile() && remainSourceChoice !== "ref"; }
+function strictRemainFile() { return hasRemainFile() && remainSourceChoice === "remain"; }
+function pickRemainSource(v) {
+  remainSourceChoice = v;
+  syncRemainSource();
+  toggleTimeFilter();
+  refreshView();
+}
+function syncRemainSource() {
+  document.querySelectorAll('.remain-src').forEach(el => {
+    el.value = remainSourceChoice;
+    el.disabled = !hasRemainFile();
+    el.title = hasRemainFile() ? "" : "ارفق «ملف الوقت المتبقي» ثم اضغط إنشاء وحفظ";
+  });
+  if (!hasRemainFile()) document.querySelectorAll('.remain-src').forEach(el => el.value = "ref");
+}
+/* بلاغات تظهر في «غير المتأخر» فقط (من ملف الوقت المتبقي) */
+function ontimeOnly(t) { return t.noLog || t.remainOnly || t.lensOnly; }
+
+const idCol = "رقم البلاغ";
+const beforeCol = "حالة البلاغ/قبل";
+const transferCol = "تاريخ الاحالة";
+const actionCol = "تاريخ الاجراء";
+const timeCol = "الوقت المستغرق/بالساعات";
+const employeeCol = "اسم الموظف";
+
+const storedStatusCol = "حالة البلاغ في النظام";
+const storedEmployeeCol = "اسم الموظف المسند اليه";
+
+const validStatusConditions = [
+  "انتظار الاستجابة",
+  "معلق - انتظار رد مدير",
+  "انتظار استجابة - مقاول",
+  "انتظار الاستجابة – مشرف",
+  "قيد التنفيذ - تحقق مشرف البلاغات",
+  "بانتظار التحقق من إجراء الاغلاق"
+];
+
+function isImportant(text) {
+  return text.includes("انتظار الاستجابة") ||
+         text.includes("معلق - انتظار رد مدير");
+}
+
+function extract(n) {
+  if (!n) return 0;
+  n = String(n).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  return parseFloat(n) || 0;
+}
+
+function shorten(text) {
+  return String(text || "").split("\n").slice(0, 2).join("\n");
+}
+
+function updateStats(result) {
+  const statsBar = document.getElementById('statsBar');
+  const total = Object.keys(result).length;
+  let delayed = 0;
+  for (const id in result) {
+    if (result[id].hasDelay) delayed++;
+  }
+  document.getElementById('totalCount').textContent = total;
+  document.getElementById('delayCount').textContent = delayed;
+  document.getElementById('onTimeCount').textContent = total - delayed;
+  statsBar.style.display = 'flex';
+}
+
+function computeDelays(result) {
+  for (const id in result) {
+    let current = result[id].std;
+    let hasDelay = false;
+    result[id].steps.forEach(step => {
+      current -= step.hours;
+      if (current < 0) hasDelay = true;
+    });
+    result[id].hasDelay = hasDelay;
+  }
+}
+
+/* لون خلية الساعات كما في الأصل: أحمر عند تجاوز الوقت المعياري */
+function isRedCell(ticket, remaining, i) {
+  return remaining[i] < 0;
+}
+
+function remainingList(ticket) {
+  let c = ticket.std;
+  return ticket.steps.map(s => (c -= s.hours));
+}
+
+/* النظافة = الإدارة العامة للنظافة + البلديات الفرعية (بلدية السيل، بلدية غرب الطائف...)
+   لأن البلدية مو إدارة ثانية — البلاغ اللي يروح للبلدية ويرجع ما يُحسب «وارد من إدارة أخرى» */
+function isCleaningDept(d) {
+  const t = normText(d);
+  return /نظافه/.test(t) || /^بلديه/.test(t);
+}
+
+/* البلاغ يُخفى إذا كانت كل خطواته في «الإدارة العامة للنظافة» (حسب الادارة/قبل) */
+function isCleaningOnly(ticket) {
+  const depts = ticket.steps.map(s => s.dept || "").filter(Boolean);
+  return depts.length > 0 && depts.every(isCleaningDept);
+}
+
+/* تحويل نص التاريخ إلى رقم زمني — يدعم 2026/10/24 10:28 و 10/24/26 10:28:38 AM و ص/م */
+function parseDateTime(v) {
+  if (v == null || v === "") return null;
+  let t = String(v).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim();
+  let pm = /(PM|م)\b/i.test(t) || /\sم$/.test(t), am = /(AM|ص)\b/i.test(t) || /\sص$/.test(t);
+  t = t.replace(/AM|PM|ص|م/gi, " ").replace(/\s+/g, " ").trim();
+  const dm = t.match(/(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})/);
+  if (!dm) return null;
+  let y, mo, d;
+  if (dm[1].length === 4) { y = +dm[1]; mo = +dm[2]; d = +dm[3]; }
+  else { mo = +dm[1]; d = +dm[2]; y = +dm[3]; if (y < 100) y += 2000; }
+  const tm = t.replace(dm[0], "").match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  let h = tm ? +tm[1] : 0, mi = tm ? +tm[2] : 0, se = tm && tm[3] ? +tm[3] : 0;
+  if (pm && h < 12) h += 12;
+  if (am && h === 12) h = 0;
+  const ts = new Date(y, mo - 1, d, h, mi, se).getTime();
+  return isNaN(ts) ? null : ts;
+}
+
+/* وقت ورود البلاغ للإدارة = تاريخ الإحالة لأول خطوة في إدارة غير الإدارة العامة للنظافة */
+function arrivalTime(ticket) {
+  const st = ticket.steps.find(s => s.dept && !isCleaningDept(s.dept));
+  return st ? st.refTs : null;
+}
+
+/* الوقت المتبقي على البلاغ بالساعات = المعياري − مجموع الساعات المستغرقة */
+function remainingHours(ticket) {
+  return ticket.std - ticket.steps.reduce((sum, st) => sum + (st.hours || 0), 0);
+}
+
+/* خطوة ورود البلاغ من الإدارة الأخرى:
+   آخر خطوة «الادارة/قبل» فيها غير النظافة و«الادارة/بعد» هي النظافة،
+   وإن لم يوجد عمود «بعد» فآخر خطوة «قبل» فيها غير النظافة */
+function arrivalIndex(ticket) {
+  const st = ticket.steps;
+  for (let i = st.length - 1; i >= 0; i--) {
+    if (st[i].dept && !isCleaningDept(st[i].dept) && st[i].deptTo && isCleaningDept(st[i].deptTo)) return i;
+  }
+  for (let i = st.length - 1; i >= 0; i--) {
+    if (st[i].dept && !isCleaningDept(st[i].dept)) return i;
+  }
+  return -1;
+}
+
+/* المتبقي على الوقت المعياري لحظة ورود البلاغ من الإدارة الأخرى */
+function arrivalRemaining(ticket) {
+  const k = arrivalIndex(ticket);
+  if (k < 0) return null;
+  let used = 0;
+  for (let i = 0; i <= k; i++) used += ticket.steps[i].hours || 0;
+  return ticket.std - used;
+}
+
+/* القيم المطبّقة تُحفظ عند الضغط على زر «فلترة» فقط */
+let appliedRemain = { from: "", to: "" };
+let filterApplied = false;
+
+/* حالات آخر خطوة المسموحة عند الفلترة */
+const LAST_STEP_STATUSES = [
+  "قيد التنفيذ - تحقق مشرف البلاغات",
+  "قيد التنفيذ - مقاول",
+  "انتظار استجابة - مقاول",
+  "انتظار الاستجابة – مشرف"
+];
+const LAST_STEP_PATTERNS = [/قيدالتنفيذ.*مشرف/, /قيدالتنفيذ.*مقاول/, /انتظار.*مقاول/, /انتظار.*مشرف/];
+
+function lastStepStatus(ticket) {
+  const st = ticket.steps[ticket.steps.length - 1];
+  return st ? String(st.text || "").split("\n")[0] : "";
+}
+
+function lastStepAllowed(ticket) {
+  const t = normText(lastStepStatus(ticket));
+  return LAST_STEP_PATTERNS.some(p => p.test(t));
+}
+
+function applyTimeFilter() {
+  filterApplied = true;
+  appliedRemain = {
+    from: document.getElementById('remainFrom').value,
+    to: document.getElementById('remainTo').value
+  };
+  refreshView();
+}
+
+function getRemainRange() {
+  const mult = 1; /* بالساعات */
+  const f = appliedRemain.from;
+  const t = appliedRemain.to;
+  return { from: f !== "" ? parseFloat(f) * mult : null, to: t !== "" ? parseFloat(t) * mult : null };
+}
+
+function remainingInRange(ticket, id) {
+  const r = getRemainRange();
+  if (r.from == null && r.to == null) return true;
+  /* المصدر: ملف الوقت المتبقي ← المتبقي الحالي من المنصة | السجل والمرجعي ← خطوة القياس (كما هو) */
+  let rem = useRemainFile() ? refRemaining(id) : null;
+  if (rem == null && !strictRemainFile()) rem = measureRemaining(ticket);
+  if (rem == null) return false;
+  if (r.from != null && rem < r.from) return false;
+  if (r.to != null && rem >= r.to) return false;
+  return true;
+}
+
+/* وضع فلتر الإدارة: other = الإدارات الأخرى | cleaning = النظافة فقط | "" = بدون */
+function deptMode() {
+  if (document.getElementById('excludeCleaning').checked) return "other";
+  if (document.getElementById('onlyCleaning').checked) return "cleaning";
+  return "";
+}
+
+/* المربعان لا يُحددان معاً */
+function pickDeptMode(which) {
+  if (which === "other" && document.getElementById('excludeCleaning').checked) document.getElementById('onlyCleaning').checked = false;
+  if (which === "cleaning" && document.getElementById('onlyCleaning').checked) document.getElementById('excludeCleaning').checked = false;
+  toggleTimeFilter();
+  refreshView();
+}
+
+function toggleTimeFilter() {
+  const mode = deptMode();
+  document.getElementById('timeFilter').style.display = mode ? 'flex' : 'none';
+  document.getElementById('remainLabel').textContent = useRemainFile()
+    ? (strictRemainFile() ? "⏳ المتبقي على المعياري (من ملف الوقت المتبقي):" : "⏳ المتبقي على المعياري (الملف الثالث ثم السجل والمرجعي):")
+    : mode === "cleaning"
+    ? "⏳ المتبقي على المعياري في الإدارة العامة للنظافة:"
+    : "⏳ المتبقي على المعياري لحظة الورود من الإدارة:";
+}
+
+/* خطوة القياس: الإدارات الأخرى ← خطوة الورود | النظافة فقط ← آخر خطوة */
+function measureIndex(ticket) {
+  const mode = deptMode();
+  if (mode === "other") return arrivalIndex(ticket);
+  if (mode === "cleaning") return ticket.steps.length - 1;
+  return -1;
+}
+
+function measureRemaining(ticket) {
+  const k = measureIndex(ticket);
+  if (k < 0) return null;
+  let used = 0;
+  for (let i = 0; i <= k; i++) used += ticket.steps[i].hours || 0;
+  return ticket.std - used;
+}
+
+function clearTimeFilter() {
+  document.getElementById('remainFrom').value = "";
+  document.getElementById('remainTo').value = "";
+  appliedRemain = { from: "", to: "" };
+  filterApplied = false;
+  refreshView();
+}
+
+/* وصف الفلتر لعنوان الطباعة */
+function filterDescription() {
+  const v = viewDescription();
+  const d0 = deptFilterDescription();
+  const src = (deptMode() || currentView === "ontime") && useRemainFile()
+    ? (strictRemainFile() ? "المتبقي من ملف الوقت المتبقي" : "المتبقي من ملف الوقت المتبقي ثم السجل والمرجعي") : "";
+  return [d0, v].filter(Boolean).join(" — ");
+}
+
+function viewDescription() {
+  if (currentView === "lens") return "🤖 بلدي لنس (Urbi)" + (lensBand ? " — " + LENS_BANDS[lensBand] : "");
+  if (currentView === "delay") {
+    if (!delayRecent) return "المتأخر";
+    if (lateOpen) return "متأخرة وللحين ما انحلت (بدون تاريخ حل)";
+    if (lateDay) return "انقفلت وانسجلت متأخرة يوم " + lateDay.slice(8) + "/" + lateDay.slice(5, 7) + "/" + lateDay.slice(0, 4) + " (حسب تاريخ الحل)";
+    if (lateMonth) return "انقفلت وانسجلت متأخرة في " + AR_MONTHS[Number(lateMonth.slice(5)) - 1] + " " + lateMonth.slice(0, 4) + " (حسب تاريخ الحل)";
+    return "انقفلت وانسجلت متأخرة (حسب تاريخ الحل)";
+  }
+  if (currentView === "ontime") return "غير المتأخر (" + ONTIME_STATUSES.join(" / ") + ")" + (ontimeUnder48 ? " — المتبقي أقل من " + ontimeLimit() + " ساعة" : "");
+  return "";
+}
+
+function deptFilterDescription() {
+  const mode = deptMode();
+  if (!mode) return "";
+  let d = mode === "other" ? "الإدارات ما عدا الإدارة العامة للنظافة" : "الإدارة العامة للنظافة فقط";
+  const f = appliedRemain.from, t = appliedRemain.to;
+  if (mode === "cleaning" && filterApplied) d += " — آخر خطوة: " + LAST_STEP_STATUSES.join(" / ");
+  if (f !== "" || t !== "") d += (mode === "other" ? " — المتبقي لحظة الورود" : " — المتبقي") + (f !== "" ? " من " + f + " ساعة" : "") + (t !== "" ? " إلى أقل من " + t + " ساعة" : "");
+  return d;
+}
+
+/* مصدر الوقت المتبقي: ملف الوقت المتبقي (الزر الثالث)، وإن لم يُرفق فعمود «الوقت المتبقي» في المرجعي */
+function remainRec(id) {
+  if (useRemainFile()) {
+    if (remainMap[id]) return remainMap[id];
+    if (strictRemainFile()) return null;
+  }
+  const rec = storedTableMap && storedTableMap[id];
+  return rec && typeof rec.remain === "number" && !isNaN(rec.remain) ? { remain: rec.remain, ref: true } : null;
+}
+
+function refRemaining(id) {
+  const rec = remainRec(id);
+  if (!rec) return null;
+  const v = rec.remain;
+  /* المتبقي من ملف الوقت المتبقي ينقص مع مرور الوقت من لحظة إرفاقه */
+  const at = rec.at || remainMeta.at;
+  if (typeof v === "number" && !isNaN(v)) return rec.ref || !at ? v : v - (Date.now() - at) / 3600000;
+  /* بدون عمود «الوقت المتبقي»: المتبقي = الوقت المستهدف − الآن (نفس حساب المنصة) */
+  if (typeof rec.targetTs === "number") return (rec.targetTs - Date.now()) / 3600000;
+  return null;
+}
+
+/* المتبقي المستخدم لغير المتأخر:
+   الإدارات الأخرى ← المتبقي لحظة الورود | غير ذلك ← «الوقت المتبقي» من المرجعي، وإن لم يوجد فمن ساعات السجل */
+function onTimeRemaining(t, id) {
+  if (useRemainFile()) {
+    const f = refRemaining(id);
+    if (f != null) return f;
+  }
+  if (deptMode() === "other") {
+    const r = measureRemaining(t);
+    if (r != null) return r;
+  }
+  const ref = refRemaining(id);
+  return ref != null ? ref : remainingHours(t);
+}
+
+/* حالات البلاغ المسموحة في غير المتأخر */
+const ONTIME_STATUSES = ["جديد", "قيد التنفيذ", "معاد الفتح"];
+const ONTIME_PATTERNS = [/^جديد/, /^قيدالتنفيذ/, /^معاد/]; /* معاد الفتح / معاد فتحه */
+
+/* حالة البلاغ: من عمود «حالة البلاغ في النظام / حالة البلاغ» في المرجعي، وإن لم توجد فمن آخر خطوة في السجل */
+function simpleStatusOf(id) {
+  const r = useRemainFile() ? remainMap[id] : null;
+  const rec = storedTableMap && storedTableMap[id];
+  return (r && r.simpleStatus) || (rec && rec.simpleStatus) || "";
+}
+
+function ticketStatus(id, t) {
+  const rec = storedTableMap && storedTableMap[id];
+  const simple = simpleStatusOf(id);
+  if (simple) return String(simple);                              /* عمود «حالة البلاغ» */
+  if (rec && rec.status) return String(rec.status);               /* «حالة البلاغ في النظام» */
+  return lastStepStatus(t);
+}
+
+function onTimeStatusAllowed(id, t) {
+  /* ما فيه عمود «حالة البلاغ» لا في ملف الوقت المتبقي ولا في المرجعي ← بدون شرط حالة (مثل ملف الأمانة) */
+  if (!simpleStatusOf(id) && refRemaining(id) != null) return true;
+  const v = normText(ticketStatus(id, t));
+  return ONTIME_PATTERNS.some(p => p.test(v));
+}
+
+/* فيه خلية ⚠️ تأخير (متبقي بالسالب) في أي خطوة */
+function hasRedCell(t) {
+  return remainingList(t).some(v => v < 0);
+}
+
+function onTimeAllowed(t, id) {
+  /* مع ملف الوقت المتبقي: فقط البلاغات الموجودة فيه */
+  if (strictRemainFile() && !remainMap[id]) return false;
+  /* استثناء: معاد فتحه + انبه عليه + تأخر = «عدم رضا مشرف البلاغات» ← يطلع في التقرير حتى لو متأخر */
+  if (isSupervisorReopen(id)) return supervisorReopenStepOk(t);
+  const ref = refRemaining(id);
+  /* غير متأخر: من «الوقت المتبقي» في المرجعي إن وُجد (صفر أو أكثر)، وإلا من الساعات */
+  if (ref != null ? ref < 0 : (t.hasDelay || hasRedCell(t))) return false;
+  if (!onTimeStatusAllowed(id, t)) return false;
+  if (ontimeUnder48) {
+    const r = onTimeRemaining(t, id);
+    if (!(r >= 0 && r < ontimeLimit())) return false;
+  }
+  return true;
+}
+
+/* المتبقي حسب المنصة تحت رقم البلاغ (في «غير المتأخر») */
+/* معاد فتحه: من «هل تمت اعادة فتح البلاغ؟» أو «حالة البلاغ» أو خطوات السجل */
+function isReopened(id) {
+  const rec = storedTableMap && storedTableMap[id];
+  const r = remainMap && remainMap[id];
+  if (rec && rec.reopened) return true;
+  const st = normText((r && r.simpleStatus) || (rec && rec.simpleStatus) || "");
+  if (/^معاد/.test(st)) return true;
+  const t = lastResult[id];
+  return !!(t && t.steps.some(x => /معاد(ال)?فتح/.test(normText(String(x.text || "").split("\n")[0]))));
+}
+
+/* ورد من إدارة أخرى: آخر إدارة غير النظافة وصل منها البلاغ للنظافة */
+function cameFromDept(id) {
+  const t = lastResult[id];
+  if (!t || t.noLog) return "";
+  const st = t.steps;
+  const hasTo = st.some(x => x.deptTo);
+  for (let i = st.length - 1; i >= 0; i--) {
+    if (st[i].dept && !isCleaningDept(st[i].dept) && (hasTo ? (st[i].deptTo && isCleaningDept(st[i].deptTo)) : st.some(x => isCleaningDept(x.dept))))
+      return String(st[i].dept);
+  }
+  return "";
+}
+
+function fmtDateTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts), p = n => String(n).padStart(2, "0");
+  let h = d.getHours(); const ap = h >= 12 ? "م" : "ص"; h = h % 12 || 12;
+  return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() + " " + h + ":" + p(d.getMinutes()) + " " + ap;
+}
+
+/* المتبقي المعروض للبلاغ (نفس اللي في المربع الأخضر) */
+function displayRemaining(id) {
+  let r = refRemaining(id);
+  const t = lastResult[id];
+  if (r == null && t) r = currentView === "ontime" ? onTimeRemaining(t, id) : (deptMode() ? measureRemaining(t) : remainingHours(t));
+  return r;
+}
+
+/* يظهر سجل التنبيه بس إذا:
+   1) البلاغ انطبع (تنبيه) وهو غير متأخر — مهما كان الباقي عليه
+   2) والحين صار متأخر
+   3) وحالته: جديد / قيد التنفيذ / معاد فتحه
+   4) وموجود في ملف الوقت المتبقي المخزن */
+function alertApplies(id) {
+  const al = alertsMap[id];
+  if (!al || !al.some(a => a.remain == null || a.remain >= 0)) return false;
+  /* 4) والبلاغ موجود في ملف الوقت المتبقي المخزن */
+  if (!remainMap || !remainMap[id]) return false;
+  const t = lastResult[id];
+  const r = refRemaining(id);
+  /* متأخر: من «مستوى الخدمة» في المرجعي، أو المتبقي من الملف الثالث صار بالسالب، أو ساعات السجل */
+  const late = !!(t && t.hasDelay) || (r != null ? r < 0 : !!(t && hasRedCell(t)));
+  if (!late) return false;
+  const st = normText(t ? ticketStatus(id, t) : (simpleStatusOf(id) || ""));
+  return ONTIME_PATTERNS.some(p => p.test(st));
+}
+
+/* تسجيل التنبيه عند طباعة PDF: التاريخ والمتبقي وقتها */
+let lastPdfIds = [];
+function recordAlerts(ids) {
+  const box = document.getElementById('recordAlertsBox');
+  if (!box || !box.checked) return;   /* التنبيه اختياري */
+  const now = Date.now();
+  ids.forEach(id => {
+    const list = alertsMap[id] || (alertsMap[id] = []);
+    const r = displayRemaining(id);
+    const entry = { at: now, remain: r == null ? null : Math.round(r * 100) / 100 };
+    const last = list[list.length - 1];
+    if (last && now - last.at < 30 * 60000) list[list.length - 1] = entry;   /* نفس الطباعة خلال 30 دقيقة = تنبيه واحد */
+    else list.push(entry);
+  });
+  kvPut(ALERTS_KEY, alertsMap);
+  refreshView();   /* تظهر خانة التنبيه على الشاشة مباشرة */
+}
+
+/* معاد فتحه + انبه عليه قبل + متأخر الحين ← «عدم رضا مشرف البلاغات» */
+/* آخر خطوة لازم تكون: انتظار استجابة مقاول / قيد التنفيذ - مقاول / قيد التنفيذ - تحقق مشرف البلاغات */
+const SUP_REOPEN_STEPS = [/انتظار.*استجابه.*مقاول/, /قيدالتنفيذ.*مقاول/, /قيدالتنفيذ.*تحقق.*مشرف/];
+function supervisorReopenStepOk(t) {
+  const v = normText(lastStepStatus(t));
+  return SUP_REOPEN_STEPS.some(p => p.test(v));
+}
+
+/* معاد فتحه + انبه عليه + متأخر الحين */
+function alertedAndLate(id) {
+  const al = alertsMap && alertsMap[id];
+  const t = lastResult[id];
+  const r = refRemaining(id);
+  const late = !!(t && t.hasDelay) || (r != null ? r < 0 : !!(t && hasRedCell(t)));
+  return !!(al && al.length && late);
+}
+function isSupervisorReopen(id) {
+  return isReopened(id) && alertedAndLate(id);
+}
+
+/* رجع بسبب عدم رضا العميل: في الخطوات «التحقق من إجراء الاغلاق» (أو تحقق الجودة)،
+   وبعدها خطوة فيها «عدم رضا/رضى العميل» */
+function returnedByCustomer(t) {
+  if (!t || !t.steps) return false;
+  const st = t.steps.map(x => normText(String(x.text || "").split("\n")[0]));
+  const i = st.findIndex(v => /تحقق.*اغلاق/.test(v));
+  if (i < 0) return false;
+  for (let j = i + 1; j < st.length; j++) if (/عدمرض[اي]العميل/.test(st[j])) return true;
+  return false;
+}
+
+/* فيه خطوة «التحقق من إجراء الاغلاق» في السجل؟ */
+function hasClosingCheck(t) {
+  return !!(t && t.steps && t.steps.some(x => /تحقق.*اغلاق/.test(normText(String(x.text || "").split("\n")[0]))));
+}
+
+/* سبب إعادة الفتح (للبلاغ المعاد فتحه في السجل أو المرجعي):
+   - وصل «التحقق من إجراء الاغلاق» وبعده «عدم رضا العميل» ← تم إرجاعه بسبب عدم رضا العميل
+   - ما وصل «التحقق من إجراء الاغلاق» أصلاً (رجع من المشرف للمقاول) ← عدم رضا مشرف البلاغات */
+function reopenLabel(id) {
+  const t = lastResult[id];
+  if (returnedByCustomer(t)) return '🔁 معاد فتحه — تم إرجاعه بسبب عدم رضا العميل';
+  if (t && !hasClosingCheck(t)) return '🔁 معاد فتحه — عدم رضا مشرف البلاغات';
+  return '🔁 معاد فتحه';
+}
+
+function badge(txt, bg) {
+  return '<br><span style="display:inline-block;margin-top:4px;padding:2px 6px;border-radius:6px;background:' + bg +
+         ';color:#fff;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">' + txt + '</span>';
+}
+
+function platformRemainTag(id) {
+  let html = "";
+  const dep = cameFromDept(id);
+  if (dep) html += badge('↪️ ورد من: ' + dep, '#1f6fb2');
+  if (isReopened(id)) html += badge(reopenLabel(id), '#f57c00');
+  if (currentView === "delay") {
+    const sv = lateRecordedTs(id);
+    html += sv != null ? badge('✅ انحل متأخر: ' + fmtDateTime(sv), '#7f8c8d') : badge('🔓 متأخر وللحين ما انحل', '#c0392b');
+  }
+  if (currentView !== "ontime" && currentView !== "lens" && !deptMode()) return html;
+  const r = displayRemaining(id);
+  if (r != null) html += r < 0
+    ? badge('⚠️ متأخر بـ ' + Math.abs(r).toFixed(2) + ' ساعة', '#e74c3c')
+    : badge('⏳ المتبقي: ' + r.toFixed(2) + ' ساعة', '#11998e');
+  return html;
+}
+
+/* نص التقرير بدون أسماء: الاسم يظهر في آخر خطوة فقط (اللي عنده البلاغ حالياً) */
+function hideNamesText(text) {
+  const L = String(text || "").split("\n");
+  if (L.length > 1) L.splice(1, 1);
+  return L.join("\n");
+}
+
+/* بلاغات ملف الوقت المتبقي اللي ما لها تتبع/مرجعي تظهر لما يكون المصدر هو الملف الثالث */
+function showFileOnly() {
+  return useRemainFile() && (currentView === "ontime" || !!deptMode());
+}
+
+/* ====== البحث برقم البلاغ: يعرض المطابق من كل البلاغات بغض النظر عن الفلاتر ====== */
+let searchQuery = "", searchTimer = null;
+function normSearch(v) {
+  return String(v || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\s+/g, "").toUpperCase();
+}
+function onSearchInput() { clearTimeout(searchTimer); searchTimer = setTimeout(applySearch, 350); }
+function applySearch() {
+  searchQuery = normSearch(document.getElementById('searchBox').value);
+  refreshView();
+  const info = document.getElementById('searchInfo');
+  if (!searchQuery) { info.textContent = ""; return; }
+  const n = Object.keys(lastRendered || {}).length;
+  info.textContent = n ? "(" + n + " بلاغ)" : "ما فيه بلاغ بهذا الرقم";
+  if (n) document.getElementById('displayArea').scrollIntoView({ behavior: 'smooth' });
+}
+function clearSearch() { document.getElementById('searchBox').value = ""; applySearch(); }
+
+/* ====== بلدي لنس ====== */
+let lensBand = null;   /* null = الكل | a = أقل من 10 | b = 10–24 | c = 24 وأكثر */
+const LENS_BANDS = { a: "المتبقي أقل من 10 ساعات", b: "المتبقي من 10 إلى أقل من 24 ساعة", c: "المتبقي 24 ساعة وأكثر", d: "متأخرة (تجاوزت الوقت المعياري)" };
+function isUrbi(id) {
+  const t = lastResult[id], rec = storedTableMap && storedTableMap[id];
+  return /urbi/i.test(String((rec && rec.source) || (t && t.source) || ""));
+}
+/* المتبقي: من ملف الوقت المتبقي، وإلا من السجل */
+function lensRemaining(id) {
+  const r = refRemaining(id);
+  return r != null ? r : (lastResult[id] ? remainingHours(lastResult[id]) : null);
+}
+/* «حالة البلاغ» = مغلق ← ما يطلع في بلدي لنس (من المرجعي، وإلا من السجل) */
+function isClosedStatus(id) {
+  const t = lastResult[id];
+  const v = normText(simpleStatusOf(id) || (t && t.simple) || "");
+  return /^مغلق/.test(v);
+}
+
+function lensBandOf(id) {
+  const r = lensRemaining(id);
+  if (r == null) return "c";
+  if (r < 0) return "d";                        /* متأخرة */
+  return r < 10 ? "a" : r < 24 ? "b" : "c";
+}
+function lensCounts() {
+  const c = { a: 0, b: 0, c: 0, d: 0 };
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (!isUrbi(id) || isClosedStatus(id)) continue;
+    const b = lensBandOf(id); if (b) c[b]++;
+  }
+  return c;
+}
+function pickLens(band) {
+  hideDelayChoice();
+  ontimeUnder48 = false;
+  setOnTimeUI(false);
+  delayMode = false;
+  currentView = "lens";
+  lensBand = band;
+  document.getElementById('lensChoice').style.display = 'flex';
+  ['a', 'b', 'c', 'd'].forEach(k => document.getElementById('lens' + k.toUpperCase()).classList.toggle('active', band === k));
+  document.getElementById('lensAll').classList.toggle('active', !band);
+  document.getElementById('lensButton').classList.add('active');
+  const c = lensCounts();
+  document.getElementById('lensA').textContent = 'أقل من 10 ساعات (' + c.a + ')';
+  document.getElementById('lensB').textContent = 'من 10 إلى أقل من 24 (' + c.b + ')';
+  document.getElementById('lensC').textContent = '24 ساعة وأكثر (' + c.c + ')';
+  document.getElementById('lensD').textContent = 'متأخرة (' + c.d + ')';
+  document.getElementById('lensInfo').textContent = 'المجموع (ما عدا المغلق): ' + (c.a + c.b + c.c + c.d) + ' بلاغ';
+  refreshView();
+}
+function hideLens() {
+  lensBand = null;
+  const el = document.getElementById('lensChoice'); if (el) el.style.display = 'none';
+  const b = document.getElementById('lensButton'); if (b) b.classList.remove('active');
+}
+
+/* PDF بلدي لنس: 3 صفحات (أقل من 10 / 10–24 / 24 وأكثر)، كل صفحة مجمّعة حسب البلدية، مع علامة مائية */
+let pdfAllStages = false;
+function exportLensPDF() {
+  const keep = lensBand;
+  let html = '<div class="lens-wm">بلاغات الذكاء الاصطناعي</div>';
+  pdfAllStages = true;
+  try {
+    ['a', 'b', 'c', 'd'].forEach((k, i) => {
+      lensBand = k;
+      const n = Object.keys(getDisplayData()).length;
+      if (i > 0) html += '<div class="pdf-newpage"></div>';
+      html += '<h2 style="text-align:center;color:#6c3483;">🤖 بلدي لنس — ' + LENS_BANDS[k] + ' (' + n + ' بلاغ)</h2>';
+      html += n ? buildPDFTable().replace(/<h2>[\s\S]*?<\/h2>/, '') : '<p style="text-align:center;color:#888;">ما فيه بلاغات</p>';
+    });
+  } finally {
+    pdfAllStages = false;
+    lensBand = keep;
+  }
+  document.getElementById('pdfPrintArea').innerHTML = html;
+  setTimeout(function () { printOrPDF("بلدي_لنس.pdf"); }, 300);
+}
+
+function getDisplayData() {
+  if (currentView === "lens") {
+    const out = {};
+    for (const id in lastResult) {
+      const t = lastResult[id];
+      if (!isUrbi(id) || isClosedStatus(id)) continue;
+      const b = lensBandOf(id);
+      if (!b || (lensBand && b !== lensBand)) continue;
+      out[id] = t;
+    }
+    return out;
+  }
+  if (searchQuery) {
+    const found = {};
+    for (const id in lastResult) {
+      if (lastResult[id].noLog) continue;
+      if (normSearch(id).includes(searchQuery)) found[id] = lastResult[id];
+    }
+    return found;
+  }
+  const mode = deptMode();
+  let filtered = {};
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (currentView === "delay" && !t.hasDelay) continue;
+    if (currentView === "delay" && delayRecent && !lateWithinRecent(id)) continue;
+    if (currentView === "ontime" && !onTimeAllowed(t, id)) continue;
+    if (t.noLog || t.lensOnly) continue; /* البلاغ اللي ماله تتبع في السجل ما يظهر في التقرير */
+    if (ontimeOnly(t) && !showFileOnly()) continue;
+    if (mode === "other" && isCleaningOnly(t)) continue;
+    if (mode === "cleaning" && !isCleaningOnly(t)) continue;
+    if (mode && !remainingInRange(t, id)) continue;
+    if (mode === "cleaning" && filterApplied && !lastStepAllowed(t)) continue;
+    filtered[id] = t;
+  }
+  return filtered;
+}
+
+/* تفصيل الفلترة: كم بلاغ بقي بعد كل شرط، عشان يبان أي شرط قلّل النتيجة */
+function filterBreakdown(shownCount) {
+  const mode = deptMode();
+  const r = getRemainRange();
+  const hasRange = r.from != null || r.to != null;
+  let base = 0, inRange = 0, inStatus = 0, late = 0;
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (t.noLog || t.lensOnly) continue; /* البلاغ اللي ماله تتبع في السجل ما يظهر في التقرير */
+    if (ontimeOnly(t) && !showFileOnly()) continue;
+    if (mode === "other" && isCleaningOnly(t)) continue;
+    if (mode === "cleaning" && !isCleaningOnly(t)) continue;
+    base++;
+    if (!remainingInRange(t, id)) continue;
+    inRange++;
+    if (mode === "cleaning" && filterApplied && !lastStepAllowed(t)) continue;
+    inStatus++;
+    if (currentView === "ontime" ? onTimeAllowed(t, id) : t.hasDelay) late++;
+  }
+  let txt = "(" + base + " بلاغ";
+  if (hasRange) txt += " ← في نطاق الساعات: " + inRange;
+  if (mode === "cleaning" && filterApplied) txt += " ← حالة آخر خطوة من الأربع: " + inStatus;
+  if (currentView === "delay") txt += " ← المتأخر منها: " + late;
+  if (currentView === "ontime") txt += (ontimeUnder48 ? " ← غير المتأخر (جديد/قيد التنفيذ/معاد الفتح) وأقل من " + ontimeLimit() + " ساعة: " : " ← غير المتأخر (جديد/قيد التنفيذ/معاد الفتح): ") + late;
+  txt += " | المعروض: " + shownCount + ")";
+  return txt;
+}
+
+function refreshView() {
+  /* الإحصائيات حسب فلتر الإدارة (بغض النظر عن عرض المتأخر/الكل) */
+  const view = currentView;
+  currentView = "all";
+  const shownAll = getDisplayData();
+  updateStats(shownAll);
+  currentView = view;
+  const fc = document.getElementById('filterCount');
+  const shown = getDisplayData();
+  if (fc) fc.textContent = deptMode() ? filterBreakdown(Object.keys(shown).length) : "";
+  render(shown);
+}
+
+/* عرض البلاغات على دفعات حتى لا يثقل المتصفح (الطباعة والتصدير على الكل) */
+const PAGE_SIZE = 100;
+let renderLimit = PAGE_SIZE;
+let lastRendered = {};
+
+function showMore() {
+  renderLimit += PAGE_SIZE;
+  render(lastRendered, true);
+}
+
+/* خانة «المرحلة الحالية (مفتوحة)» آخر التتبع:
+   الساعات اللي مرت على المرحلة الحالية وما انحسبت في السجل = (المعياري − ساعات السجل) − المتبقي حسب المنصة */
+function withOpenStep(data) {
+  const out0 = withOpenStep0(data);
+  const out = {};
+  for (const id in out0) {
+    const t = out0[id];
+    if (t._noNames || t.noLog) { out[id] = t; continue; }
+    /* آخر خطوة حقيقية (قبل خانة المرحلة المفتوحة) يبقى فيها الاسم */
+    let lastReal = t.steps.length - 1;
+    if (lastReal >= 0 && t.steps[lastReal].open) lastReal--;
+    const steps = t.steps.map((st, i) => i < lastReal ? Object.assign({}, st, { text: hideNamesText(st.text), origText: st.text }) : st);
+    /* آخر خانة في التتبع: اسم الموظف اللي عنده البلاغ (المسند إليه من المرجعي، وإلا آخر موظف في السجل) */
+    if (steps.length) {
+      const rec = storedTableMap && storedTableMap[id];
+      const realLast = t.steps[lastReal] || t.steps[t.steps.length - 1];
+      const holder = String((rec && rec.employee) || String(realLast.text || "").split("\n")[1] || "").trim();
+      if (holder) steps[steps.length - 1] = Object.assign({}, steps[steps.length - 1], { holder: holder });
+    }
+    /* سجل التنبيهات آخر التتبع */
+    const al = alertsMap[id];
+    const showAlerts = document.getElementById('recordAlertsBox') && document.getElementById('recordAlertsBox').checked;
+    if (showAlerts && al && al.length && alertApplies(id)) {
+      steps.push({
+        text: "🔔 تم التنبيه " + al.length + " مرة:\n" + al.map((a, k) => (k + 1) + ") " + fmtDateTime(a.at) +
+              (a.remain != null ? " — باقي " + a.remain.toFixed(2) + " ساعة" : "")).join("\n"),
+        hours: 0, dept: "", deptTo: "", refTs: null, alert: true, alertCount: al.length
+      });
+    }
+    out[id] = Object.assign({}, t, { _noNames: true, steps: steps });
+  }
+  return out;
+}
+
+function withOpenStep0(data) {
+  const out = {};
+  for (const id in data) {
+    const t = data[id];
+    if (t._withOpen || t.noLog || !t.steps.length) { out[id] = t; continue; }
+    const plat = refRemaining(id);
+    if (plat == null) { out[id] = t; continue; }
+    const open = remainingHours(t) - plat;
+    if (!(open >= 0.01)) { out[id] = Object.assign({}, t, { _withOpen: true }); continue; }
+    const last = t.steps[t.steps.length - 1];
+    const status = String(last.text || "").split("\n")[0];
+    out[id] = Object.assign({}, t, {
+      _withOpen: true,
+      steps: t.steps.concat([{
+        text: status + "\n⏳ المرحلة الحالية (مفتوحة للحين)",
+        hours: open, dept: last.deptTo || last.dept, deptTo: last.deptTo || last.dept, refTs: null, open: true
+      }])
+    });
+  }
+  return out;
+}
+
+function render(res, keepLimit) {
+  if (!keepLimit) renderLimit = PAGE_SIZE;
+  res = withOpenStep(res);
+  lastRendered = res;
+  const allIds = Object.keys(res);
+  const ids = allIds.slice(0, renderLimit);
+  let head = "<tr><th>رقم البلاغ</th><th>المعياري</th>";
+  let max = 0;
+  for (const k of ids) {
+    if (res[k].steps.length > max) max = res[k].steps.length;
+  }
+  for (let i = 0; i < max; i++) head += "<th>الخطوة " + (i + 1) + "</th>";
+  head += "</tr>";
+
+  let body = "";
+  for (const id of ids) {
+    let r = res[id];
+    body += r.stdFromCat ? "<tr class='cat-row'>" : "<tr>";
+    body += `<td rowspan="2" class="id-cell"${isReopened(id) ? ' style="background:#ffe0b2;border-right:5px solid #f57c00;"' : cameFromDept(id) ? ' style="background:#e3f2fd;border-right:5px solid #1f6fb2;"' : ''}>${id}${platformRemainTag(id)}</td>`;
+    body += `<td rowspan="2" class="standard-cell">${r.std}</td>`;
+
+    let lastStep = r.steps[r.steps.length - 1];
+    r.steps.forEach(s => {
+      let showText = true;
+      if (delayMode && s === lastStep && isImportant(s.text)) {
+        showText = false;
+      }
+      if (showText) {
+        body += s.alert
+          ? `<td class="multiline" style="background:#fffde7;border:2px solid #fbc02d;"><div class="short">${String(s.text).replace(/\n/g, "<br>")}</div></td>`
+          : s.open
+          ? `<td class="multiline" style="background:#fff8e1;border:2px dashed #f7971e;"><div class="short">${String(s.text).replace(/\n/g, "<br>")}</div>${s.holder ? `<div style="margin-top:4px;padding:2px 6px;border-radius:6px;background:#e8f8f5;color:#0e6655;font-weight:bold;">👤 عنده البلاغ: ${s.holder}</div>` : ''}<span class="time-box" style="background:#f7971e;">⏱️ ${s.hours.toFixed(2)} ساعة</span></td>`
+          : `<td class="multiline"><div class="short">${shorten(s.text)}</div>${s.holder ? `<div style="margin-top:4px;padding:2px 6px;border-radius:6px;background:#e8f8f5;color:#0e6655;font-weight:bold;">👤 عنده البلاغ: ${s.holder}</div>` : ''}<span class="time-box">⏱️ ${s.hours.toFixed(2)} ساعة</span></td>`;
+      } else {
+        body += `<td></td>`;
+      }
+    });
+    for (let i = r.steps.length; i < max; i++) body += `<td></td>`;
+    body += "</tr>";
+
+    body += r.stdFromCat ? "<tr class='hours-row cat-row'>" : "<tr class='hours-row'>";
+    const rem = remainingList(r);
+    const arr = measureIndex(r);
+    rem.forEach((current, si) => {
+      if (r.steps[si].alert) { body += `<td style="background:#fbc02d;color:#333;font-weight:bold;">🔔 ${r.steps[si].alertCount}</td>`; return; }
+      let val = Math.abs(current).toFixed(2);
+      const mark = si === arr ? ` style="outline:3px solid #ffd200; outline-offset:-3px;" title="المتبقي المستخدم في فلتر الساعات"` : "";
+      if (isRedCell(r, rem, si)) {
+        body += `<td class="delay"${mark}>⚠️ تأخير ${val}</td>`;
+      } else {
+        body += `<td${mark}>✅ ${val}</td>`;
+      }
+    });
+    for (let i = r.steps.length; i < max; i++) body += `<td></td>`;
+    body += "</tr>";
+  }
+
+  document.getElementById("tableHead").innerHTML = head;
+  document.getElementById("tableBody").innerHTML = body;
+
+  const more = document.getElementById("moreBox");
+  if (allIds.length > ids.length) {
+    more.style.display = "block";
+    document.getElementById("moreInfo").textContent =
+      "معروض " + ids.length + " من " + allIds.length + " بلاغ (الطباعة والتصدير تشمل الكل)";
+  } else {
+    more.style.display = "none";
+  }
+}
+
+function setOnTimeUI(open) {
+  document.getElementById('ontimeChoice').style.display = open ? 'flex' : 'none';
+  document.getElementById('ontimeButton').classList.toggle('active', currentView === "ontime");
+  document.getElementById('ontime48Button').classList.toggle('active', currentView === "ontime" && ontimeUnder48);
+  document.getElementById('ontimeAllButton').classList.toggle('active', currentView === "ontime" && !ontimeUnder48);
+}
+
+/* زر غير المتأخر: يعرض كل غير المتأخر مباشرة ويفتح الخيارين */
+function showOnTime() {
+  pickOnTime(false);
+}
+
+function pickOnTime(under48) {
+  hideDelayChoice();
+  hideLens();
+  currentView = "ontime";
+  delayMode = false;
+  ontimeUnder48 = under48;
+  setOnTimeUI(true);
+  refreshView();
+}
+
+function showDelay() {
+  pickDelay(false);
+}
+
+/* المتأخر: الكل، أو المقفولة المتأخرة حسب يوم «تاريخ الحل» (من التقويم) */
+let delayRecent = false;          /* وضع التقويم */
+let lateDay = null;               /* اليوم المختار "YYYY-MM-DD" أو null */
+let lateOpen = false;             /* متأخرة وللحين ما انحلت (بدون تاريخ حل) */
+let lateMonth = null;             /* الشهر المعروض "YYYY-MM" — null = كل الشهر/بدون اختيار */
+let calYM = null;                 /* الشهر المعروض في التقويم [سنة, شهر 0-11] */
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const AR_DOW = ["أحد","إثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
+const p2 = n => String(n).padStart(2, "0");
+const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()); };
+
+function pickDelay(recent) {
+  hideLens();
+  currentView = "delay";
+  ontimeUnder48 = false;
+  setOnTimeUI(false);
+  /* إخفاء آخر خطوة (انتظار الاستجابة / معلق - انتظار رد مدير) يبقى في «كل المتأخر» بس — في التقويم تنكتب عادي */
+  delayMode = !recent;
+  delayRecent = recent;
+  if (!recent) { lateDay = null; lateMonth = null; lateOpen = false; }
+  document.getElementById('delayChoice').style.display = 'flex';
+  document.getElementById('delayRecentButton').classList.toggle('active', recent);
+  document.getElementById('delayAllButton').classList.toggle('active', !recent);
+  document.getElementById('lateCal').style.display = recent ? 'block' : 'none';
+  if (recent) { if (!lateDay && !lateMonth) calYM = null; renderLateCal(); }
+  refreshView();
+}
+function hideDelayChoice() {
+  delayRecent = false; lateDay = null; lateMonth = null; lateOpen = false;
+  const el = document.getElementById('delayChoice'); if (el) el.style.display = 'none';
+}
+
+/* «تاريخ الحل» للبلاغ (المقفول/المحلول) */
+function lateRecordedTs(id) {
+  const rec = storedTableMap && storedTableMap[id];
+  if (!rec || typeof rec.solvedTs !== "number") return null;
+  /* المقفول = «حالة البلاغ» مغلق. إذا الحالة غير مغلق (قيد التنفيذ / معاد فتحه...) فهو مفتوح حتى لو له تاريخ حل */
+  const t = lastResult[id];
+  const st = normText(simpleStatusOf(id) || (t && t.simple) || "");
+  if (st && !/^مغلق/.test(st)) return null;
+  return rec.solvedTs;
+}
+/* عدد المقفولة المتأخرة لكل يوم */
+function closedLateCounts() {
+  const m = {};
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (ontimeOnly(t) || !t.hasDelay) continue;
+    const ts = lateRecordedTs(id);
+    if (ts == null) continue;
+    const k = dayKey(ts); m[k] = (m[k] || 0) + 1;
+  }
+  return m;
+}
+/* عدد المتأخرة اللي للحين ما انحلت */
+function openLateCount() {
+  let n = 0;
+  for (const id in lastResult) { const t = lastResult[id]; if (!ontimeOnly(t) && t.hasDelay && lateRecordedTs(id) == null) n++; }
+  return n;
+}
+function lateWithinRecent(id) {
+  const ts = lateRecordedTs(id);
+  if (lateOpen) return ts == null;     /* المتأخرة المفتوحة */
+  if (ts == null) return false;
+  const k = dayKey(ts);
+  if (lateDay) return k === lateDay;
+  if (lateMonth) return k.slice(0, 7) === lateMonth;
+  return true;   /* بدون اختيار: كل المقفولة المتأخرة */
+}
+
+function renderLateCal() {
+  const box = document.getElementById('lateCal');
+  const counts = closedLateCounts();
+  const keys = Object.keys(counts).sort();
+  /* ما فيه «تاريخ الحل» في البيانات (تحليل قديم أو مرجعي بدون العمود) */
+  const anySolved = Object.keys(storedTableMap || {}).some(id => typeof storedTableMap[id].solvedTs === "number");
+  if (!anySolved) {
+    box.innerHTML = '<div style="padding:14px;text-align:center;color:#c0392b;font-weight:bold;line-height:1.8;">⚠️ ما فيه «تاريخ الحل» في البيانات الحالية.<br>' +
+      '<span style="color:#555;font-weight:normal;">ارفق <b>السجل</b> و<b>الملف المرجعي</b> واضغط «💾 إنشاء وحفظ» (مو «عرض المحفوظ»)، لأن التحليل المحفوظ قبل هذا التحديث ما فيه تاريخ الحل.</span></div>';
+    return;
+  }
+  if (!calYM) {
+    const last = keys.length ? keys[keys.length - 1] : dayKey(Date.now());
+    calYM = [Number(last.slice(0, 4)), Number(last.slice(5, 7)) - 1];
+  }
+  const [y, mo] = calYM;
+  const first = new Date(y, mo, 1), nDays = new Date(y, mo + 1, 0).getDate();
+  const ym = y + "-" + p2(mo + 1);
+  let monthTotal = 0, monthDays = 0;
+  for (let d = 1; d <= nDays; d++) { const c = counts[ym + "-" + p2(d)] || 0; if (c) { monthTotal += c; monthDays++; } }
+  const today = dayKey(Date.now());
+  let h = '<div class="lc-head"><button class="lc-nav" title="الشهر السابق" onclick="moveLateCal(-1)">›</button>' +
+          '<div><div class="lc-title">' + AR_MONTHS[mo] + ' ' + y + '</div>' +
+          '<div class="lc-sub">' + (monthTotal ? monthTotal + ' بلاغ انقفل متأخر في ' + monthDays + ' يوم' : 'ما فيه بلاغات انقفلت متأخرة هذا الشهر') + '</div></div>' +
+          '<button class="lc-nav" title="الشهر التالي" onclick="moveLateCal(1)">‹</button></div>';
+  h += '<div class="lc-grid">' + AR_DOW.map(d => '<div class="lc-dow">' + d + '</div>').join('');
+  for (let i = 0; i < first.getDay(); i++) h += '<div></div>';
+  for (let d = 1; d <= nDays; d++) {
+    const k = ym + "-" + p2(d), c = counts[k] || 0;
+    const cls = 'lc-day' + (c ? ' has' : '') + (k === lateDay ? ' sel' : '') + (k === today ? ' today' : '');
+    h += '<div class="' + cls + '"' + (c ? ' onclick="pickLateDay(\'' + k + '\')" title="' + c + ' بلاغ"' : '') + '>' + d +
+         (c ? '<span class="lc-n">' + c + '</span>' : '') + '</div>';
+  }
+  /* تفصيل البلاغات المعروضة حالياً (اليوم/الشهر/المفتوحة) */
+  const shownIds = Object.keys(getDisplayData());
+  let cOther = 0, cCust = 0, cSup = 0, cRe = 0;
+  shownIds.forEach(id => {
+    if (cameFromDept(id)) cOther++;
+    if (isReopened(id)) {
+      const L = reopenLabel(id);
+      if (L.includes('العميل')) cCust++; else if (L.includes('المشرف')) cSup++; else cRe++;
+    }
+  });
+  const chip = (txt, n, bg) => '<span style="display:inline-block;margin:2px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff;background:' + bg + ';">' + txt + ': ' + n + '</span>';
+  const nOpen0 = openLateCount();
+  const breakdown = '<div style="text-align:center;margin-top:6px;">' + chip('📋 المعروض', shownIds.length, '#2c3e50') +
+    '<span onclick="pickLateOpen()" title="اضغط لعرض المتأخر المفتوح" style="cursor:pointer;display:inline-block;margin:2px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:bold;color:#fff;background:' +
+      (lateOpen ? '#7b241c' : '#c0392b') + ';' + (lateOpen ? 'outline:2px solid #ffd200;' : '') + '">🔓 المتأخر المفتوح: ' + nOpen0 + '</span>' +
+    chip('↪️ من إدارة أخرى', cOther, '#1f6fb2') + chip('🔁 عدم رضا العميل', cCust, '#f57c00') +
+    chip('🔁 عدم رضا المشرف', cSup, '#d35400') + chip('🔁 معاد فتحه', cRe, '#e67e22') + '</div>';
+  const nOpen = openLateCount();
+  h += '</div><button class="' + (lateOpen ? 'btn-delay' : 'btn-clear') + '" style="width:100%;margin:8px 0 0;padding:8px;font-size:12px;" onclick="pickLateOpen()">' +
+       '🔓 متأخرة وللحين ما انحلت (بدون تاريخ حل) — ' + nOpen + ' بلاغ</button>' + breakdown;
+  h += '<div class="lc-foot"><span>' + (lateOpen ? '📌 المتأخرة المفتوحة' : lateDay ? '📌 يوم ' + lateDay.slice(8) + '/' + lateDay.slice(5, 7) + '/' + lateDay.slice(0, 4)
+        : lateMonth ? '📌 كل ' + AR_MONTHS[mo] : 'اختر يوم أحمر') + '</span>' +
+       '<button class="btn-all" onclick="pickLateMonth()">كل الشهر</button></div>';
+  h += '<div style="font-size:10px;color:#999;text-align:center;margin-top:4px;">التواريخ مقروءة من «تاريخ الحل» بالصيغة الأمريكية (شهر/يوم/سنة)</div>';
+  box.innerHTML = h;
+}
+function moveLateCal(step) {
+  let [y, m] = calYM; m += step;
+  if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+  calYM = [y, m]; renderLateCal();
+}
+function pickLateDay(k) { lateDay = (lateDay === k ? null : k); lateMonth = null; lateOpen = false; renderLateCal(); refreshView(); }
+function pickLateMonth() { lateDay = null; lateOpen = false; lateMonth = calYM[0] + "-" + p2(calYM[1] + 1); renderLateCal(); refreshView(); }
+function pickLateOpen() { lateOpen = !lateOpen; lateDay = null; lateMonth = null; renderLateCal(); refreshView(); }
+
+function showAll() {
+  hideDelayChoice();
+  hideLens();
+  currentView = "all";
+  ontimeUnder48 = false;
+  setOnTimeUI(false);
+  delayMode = false;
+  refreshView();
+}
+
+/* ====== دالة VLOOKUP ====== */
+function lookupStoredData(ticketId, lastStatusInSource) {
+  if (!storedTableMap || Object.keys(storedTableMap).length === 0) {
+    return { status: "", employee: "" };
+  }
+
+  const lastStatus = String(lastStatusInSource || "").trim();
+  const conditionMet = validStatusConditions.some(cond =>
+    lastStatus.includes(cond)
+  );
+
+  if (!conditionMet) {
+    return { status: "", employee: "" };
+  }
+
+  const cleanId = String(ticketId).trim();
+  const found = storedTableMap[cleanId];
+
+  if (found) {
+    return {
+      status: found.status || "",
+      employee: found.employee || ""
+    };
+  }
+
+  return { status: "", employee: "" };
+}
+
+/* =====================================================================
+   زر «إنشاء وحفظ في المتصفح»
+   يطابق سجل البلاغات مع الملف المرجعي حسب رقم البلاغ،
+   ويأخذ الوقت المعياري من الملف المرجعي، ثم يحفظ النتيجة في المتصفح
+   ===================================================================== */
+const STORAGE_KEY = "ticketAnalysis_saved_v1";
+const REMAIN_KEY = "ticketAnalysis_remainFile_v1";   /* آخر ملف وقت متبقي مرفق */
+const ALERTS_KEY = "ticketAnalysis_alerts_v1";       /* سجل التنبيهات */
+
+/* حفظ دائم في قاعدة بيانات الرابط (مقسّم لأجزاء لأن الوثيقة الواحدة حدها 256KB) */
+const KV_CHUNK = 60000;
+function kvDoc(key, i) { return CAP.db.collection("data/users/" + CAP.uid).doc(i == null ? key : key + "__" + i); }
+async function dbKvGet(key) {
+  const h = await kvDoc(key).get();
+  if (!h.exists) return null;
+  const n = (h.data() || {}).n || 0;
+  let str = "";
+  for (let i = 0; i < n; i++) { const c = await kvDoc(key, i).get(); if (!c.exists) return null; str += (c.data() || {}).s || ""; }
+  return str ? JSON.parse(str) : null;
+}
+async function dbKvPut(key, val) {
+  const str = JSON.stringify(val);
+  const n = Math.max(1, Math.ceil(str.length / KV_CHUNK));
+  const h = await kvDoc(key).get();
+  const oldN = h.exists ? ((h.data() || {}).n || 0) : 0;
+  for (let i = 0; i < n; i++) await kvDoc(key, i).set({ s: str.slice(i * KV_CHUNK, (i + 1) * KV_CHUNK) });
+  await kvDoc(key).set({ n: n, at: Date.now() });
+  for (let i = n; i < oldN; i++) await kvDoc(key, i).delete();
+}
+
+async function kvGet(key) {
+  await capsPromise;
+  if (CAP.db) { try { return await dbKvGet(key); } catch (e) {} }
+  try {
+    const db = await openDB();
+    const v = await new Promise((resolve, reject) => {
+      const req = db.transaction("saved", "readonly").objectStore("saved").get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (v !== undefined) return v;
+  } catch (e) {}
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+
+async function kvPut(key, val) {
+  await capsPromise;
+  if (CAP.db) {
+    try { await dbKvPut(key, val); return true; }
+    catch (e) { if (e && e.code === "quota_exceeded") showToast("⚠️ مساحة الحفظ في الرابط امتلأت"); }
+  }
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("saved", "readwrite");
+      tx.objectStore("saved").put(val, key);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    return true;
+  } catch (e) {
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e2) { return false; }
+  }
+}
+
+/* يبين الملف الثالث المحفوظ جنب زر الإرفاق */
+async function showRemainSavedInfo() {
+  const el = document.getElementById('remainSavedInfo');
+  if (!el) return;
+  const sr = await kvGet(REMAIN_KEY);
+  const nFiles = sr && sr.files ? sr.files.length : (sr && sr.meta ? 1 : 0);
+  el.textContent = sr && sr.meta && sr.map
+    ? "📌 محفوظ: " + Object.keys(sr.map).length + " بلاغ من " + nFiles + " ملف — آخر ملف «" + sr.meta.name + "» " + fmtDateTime(sr.meta.at) + " — يُستخدم تلقائياً"
+    : "";
+  const btn = document.getElementById('clearRemainButton');
+  if (btn) btn.style.display = sr && sr.map ? 'inline-block' : 'none';
+  const eb = document.getElementById('exportRemainButton');
+  if (eb) eb.style.display = sr && sr.map ? 'inline-block' : 'none';
+}
+showRemainSavedInfo();
+
+/* تصدير كل بيانات ملف الوقت المتبقي المخزنة (كل الملفات المرفقة) بنفس أعمدتها */
+async function exportRemainExcel() {
+  if (typeof XLSX === "undefined") { alert("⚠️ مكتبة Excel لم تُحمَّل. تأكد من الاتصال بالإنترنت."); return; }
+  const sr = await kvGet(REMAIN_KEY);
+  if (!sr || !sr.map || !Object.keys(sr.map).length) { alert("⚠️ لا يوجد ملف وقت متبقي محفوظ"); return; }
+  const ids = Object.keys(sr.map);
+  /* الأعمدة: كل أعمدة الملفات المرفقة بترتيبها */
+  const cols = [];
+  ids.forEach(id => { const raw = sr.map[id].raw; if (raw) for (const k in raw) if (!cols.includes(k)) cols.push(k); });
+  if (!cols.length) cols.push('رقم البلاغ', 'البلدية الفرعية', 'الإدارة', 'حالة البلاغ في النظام', 'حالة البلاغ', 'الوقت المعياري للمعالجة', 'الوقت المتبقي');
+  const extra = ['الوقت المتبقي الآن', 'تاريخ الإرفاق', 'اسم الملف'];
+  const head = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2C3E50" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true } };
+  const data = [cols.concat(extra).map(h => ({ v: h, t: "s", s: head }))];
+  ids.forEach(id => {
+    const rec = sr.map[id];
+    const raw = rec.raw || { 'رقم البلاغ': id, 'البلدية الفرعية': rec.mun, 'الإدارة': rec.dept, 'حالة البلاغ في النظام': rec.status,
+                             'حالة البلاغ': rec.simpleStatus, 'الوقت المعياري للمعالجة': rec.std, 'الوقت المتبقي': rec.remain };
+    const at = rec.at || (sr.meta && sr.meta.at) || 0;
+    let now = null;
+    if (typeof rec.remain === "number" && !isNaN(rec.remain)) now = rec.remain - (at ? (Date.now() - at) / 3600000 : 0);
+    else if (typeof rec.targetTs === "number") now = (rec.targetTs - Date.now()) / 3600000;
+    const row = cols.map(k => { const v = raw[k]; if (v == null) return ""; const t = String(v).trim(); return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : v; });
+    row.push(now == null ? "" : Math.round(now * 100) / 100, fmtDateTime(at), rec.file || (sr.meta && sr.meta.name) || "");
+    data.push(row);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = cols.concat(extra).map(() => ({ wch: 20 }));
+  ws['!views'] = [{ RTL: true }];
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, "الوقت المتبقي");
+  if (await saveWorkbook(wb, "ملف_الوقت_المتبقي_المحفوظ.xlsx"))
+    setStatus("📗 تم تصدير " + ids.length + " بلاغ من ملف الوقت المتبقي المحفوظ.", 'success');
+}
+
+async function clearRemainSaved() {
+  await capsPromise;
+  if (CAP.db) { try { await dbKvPut(REMAIN_KEY, null); } catch (e) {} }
+  try { localStorage.removeItem(REMAIN_KEY); } catch (e) {}
+  try { const db = await openDB(); db.transaction("saved", "readwrite").objectStore("saved").delete(REMAIN_KEY); } catch (e) {}
+  remainMap = {}; remainMeta = { name: "", at: 0 };
+  syncRemainSource();
+  setTimeout(showRemainSavedInfo, 200);
+  refreshView();
+  setStatus('🗑️ تم مسح ملفات الوقت المتبقي المحفوظة.', 'info');
+}
+
+/* بعد ما تجهز خدمات الرابط: نعيد قراءة المحفوظ منها */
+capsPromise.then(() => { if (CAP.db) showRemainSavedInfo(); });
+
+/* تحميل سجل التنبيهات عند فتح الصفحة */
+(async function () { const a = await kvGet(ALERTS_KEY); if (a && typeof a === "object") alertsMap = a; })();
+
+const logInput = document.getElementById('logInput');
+const refInput = document.getElementById('refInput');
+const runButton = document.getElementById('runButton');
+const clearSavedButton = document.getElementById('clearSavedButton');
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (type || 'info');
+}
+
+function setBusy(busy) {
+  runButton.disabled = busy;
+  runButton.textContent = busy ? "⏳ جارٍ المعالجة..." : "💾 إنشاء وحفظ في المتصفح";
+}
+
+/* توحيد النص العربي للمقارنة (همزات، تاء مربوطة، مسافات) */
+function normText(s) {
+  return String(s == null ? "" : s)
+    .replace(/[ً-ْـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[\s\/\\\-_()–]+/g, "")
+    .trim();
+}
+
+function fileWorkbook(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        resolve(XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true }));
+      } catch (err) {
+        reject(new Error("تعذر قراءة الملف: " + file.name));
+      }
+    };
+    reader.onerror = () => reject(new Error("تعذر قراءة الملف: " + file.name));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/* تحويل قيمة الخلية إلى نص (التواريخ بصيغة مقروءة، الأرقام بدون صيغة علمية) */
+function cellToText(v) {
+  if (v == null) return "";
+  if (v instanceof Date) {
+    const p = n => String(n).padStart(2, "0");
+    return v.getFullYear() + "/" + p(v.getMonth() + 1) + "/" + p(v.getDate()) +
+           " " + p(v.getHours()) + ":" + p(v.getMinutes());
+  }
+  if (typeof v === "number") {
+    return Number.isInteger(v) ? v.toLocaleString('fullwide', { useGrouping: false }) : String(v);
+  }
+  return String(v);
+}
+
+function sheetMatrix(wb, sheetName) {
+  const ws = wb.Sheets[sheetName];
+  if (!ws) throw new Error("الورقة غير موجودة: " + sheetName);
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true, blankrows: false })
+    .map(row => row.map(cellToText));
+}
+
+/* البحث عن صف العناوين (أول 30 صف) الذي يحتوي على كل الأعمدة المطلوبة */
+function findHeaderOrNeg(matrix, required) {
+  const limit = Math.min(matrix.length, 30);
+  for (let i = 0; i < limit; i++) {
+    const row = matrix[i] || [];
+    if (required.every(r => optionalColumn(row, r) >= 0)) return i;
+  }
+  return -1;
+}
+
+/* يبحث في كل أوراق الملف عن الورقة التي فيها العناوين المطلوبة */
+function findSheet(wb, required, label) {
+  for (const name of wb.SheetNames) {
+    const m = sheetMatrix(wb, name);
+    const h = findHeaderOrNeg(m, required);
+    if (h >= 0) return { matrix: m, headerIndex: h };
+  }
+  throw new Error("لم يتم العثور على عمود (" + required.join("، ") + ") في " + label);
+}
+
+function findColumn(headerRow, name, aliases) {
+  const idx = optionalColumn(headerRow, name, aliases);
+  if (idx < 0) throw new Error("العمود غير موجود: " + name);
+  return idx;
+}
+
+/* مطابقة تامة أولاً، ثم مطابقة جزئية (العنوان يحتوي على الاسم) */
+function optionalColumn(headerRow, name, aliases) {
+  const names = [name].concat(aliases || []).map(normText).filter(Boolean);
+  const row = (headerRow || []).map(normText);
+  for (const n of names) {
+    const idx = row.indexOf(n);
+    if (idx >= 0) return idx;
+  }
+  for (const n of names) {
+    const idx = row.findIndex(h => h && h.includes(n));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function cell(row, idx) {
+  return idx >= 0 ? String(row[idx] == null ? "" : row[idx]).trim() : "";
+}
+
+/* توحيد رقم البلاغ (أرقام عربية، فواصل، مسافات، .0) */
+function cleanId(v) {
+  return String(v == null ? "" : v)
+    .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+    .replace(/[\s,،]/g, "")
+    .replace(/\.0+$/, "")
+    .trim();
+}
+
+/* هل التصنيف التخصصي «السيارات التالفة»؟ */
+function isDamagedCars(v) {
+  return /سيار.*تالف/.test(normText(v));
+}
+
+/* هل قيمة «مستوى اتفاقية الخدمة» تعني متأخر؟ */
+function isLateLevel(v) {
+  const t = normText(v).toLowerCase();
+  if (!t) return false;
+  if (/غيرمتاخر|بدونتاخير|ضمن|فيالميعاد|فيالوقت|ملتزم|within|ontime|met/.test(t) && !/غيرملتزم/.test(t)) return false;
+  return /متاخر|تاخير|تاخر|متجاوز|تجاوز|خارج|غيرملتزم|late|breach|overdue|exceed|missed/.test(t);
+}
+
+/* الحفظ في IndexedDB (سعة كبيرة) مع localStorage احتياطياً */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error("no idb")); return; }
+    const req = indexedDB.open("ticketAnalysisDB", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("saved");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveToBrowser(payload) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("saved", "readwrite");
+      tx.objectStore("saved").put(payload, STORAGE_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    return true;
+  } catch (err) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); return true; }
+    catch (e) { return false; }
+  }
+}
+
+async function loadFromBrowser() {
+  try {
+    const db = await openDB();
+    const v = await new Promise((resolve, reject) => {
+      const req = db.transaction("saved", "readonly").objectStore("saved").get(STORAGE_KEY);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (v) return v;
+  } catch (err) {}
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function clearBrowser() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  try {
+    const db = await openDB();
+    db.transaction("saved", "readwrite").objectStore("saved").delete(STORAGE_KEY);
+  } catch (e) {}
+}
+
+runButton.addEventListener('click', async () => {
+  if (typeof XLSX === "undefined") {
+    setStatus('⚠️ مكتبة Excel لم تُحمَّل. تأكد من الاتصال بالإنترنت ثم أعد فتح الصفحة.', 'error');
+    alert('⚠️ مكتبة Excel لم تُحمَّل. تأكد من الاتصال بالإنترنت ثم أعد فتح الصفحة.');
+    return;
+  }
+
+  const logFile = logInput.files && logInput.files[0];
+  const refFile = refInput.files && refInput.files[0];
+  if (!logFile) {
+    setStatus('فضلاً اختر ملف سجل البلاغات أولاً.', 'error');
+    alert('فضلاً اختر ملف سجل البلاغات أولاً.');
+    return;
+  }
+
+  setBusy(true);
+  setStatus('جارٍ قراءة الملفات ومطابقتها...', 'info');
+
+  try {
+    /* ====== سجل البلاغات ====== */
+    const logWorkbook = await fileWorkbook(logFile);
+    const src = findSheet(logWorkbook, ['رقم البلاغ'], 'سجل البلاغات');
+    const source = src.matrix, sr = src.headerIndex, sh = source[sr];
+
+    const idSource = findColumn(sh, 'رقم البلاغ');
+    const statusCol = optionalColumn(sh, 'حالة البلاغ/قبل', ['حالة البلاغ قبل', 'حالة البلاغ']);
+    const employeeColIdx = optionalColumn(sh, 'اسم الموظف', ['الموظف']);
+    const referralCol = optionalColumn(sh, 'تاريخ الاحالة', ['تاريخ الإحالة', 'الاحالة']);
+    const actionColIdx = optionalColumn(sh, 'تاريخ الاجراء', ['تاريخ الإجراء', 'الاجراء']);
+    const durationCol = optionalColumn(sh, 'الوقت المستغرق/بالساعات', ['الوقت المستغرق بالساعات', 'الوقت المستغرق', 'المستغرق']);
+    const stdSource = optionalColumn(sh, 'الوقت المعياري للمعالجة', ['الوقت المعياري', 'معياري', 'زمن']);
+    const catSource = optionalColumn(sh, 'التصنيف التخصصي', ['التصنيف']);
+    const deptSource = optionalColumn(sh, 'الادارة/قبل', ['الإدارة/قبل', 'الادارة قبل', 'الإدارة قبل']);
+    const deptToSource = optionalColumn(sh, 'الادارة/بعد', ['الإدارة/بعد', 'الادارة بعد', 'الإدارة بعد']);
+    const srcLog = optionalColumn(sh, 'مصدر البلاغ');
+    const simpleLog = (sh || []).map(normText).indexOf(normText('حالة البلاغ'));
+    const munSource = optionalColumn(sh, 'البلدية الفرعية', ['البلديه الفرعيه', 'اسم البلدية', 'البلدية']);
+
+    if (durationCol < 0) throw new Error("لم يتم العثور على عمود «الوقت المستغرق/بالساعات» في سجل البلاغات.");
+
+    /* ====== الملف المرجعي (اختياري) ====== */
+    const refMap = new Map();
+    const newStoredMap = {};
+    let levelReference = -1;
+    const refCat = new Map();
+    if (refFile) {
+      const refWorkbook = await fileWorkbook(refFile);
+      const ref = findSheet(refWorkbook, ['رقم البلاغ'], 'الملف المرجعي');
+      const reference = ref.matrix, rr = ref.headerIndex, rh = reference[rr];
+
+      const idReference = findColumn(rh, 'رقم البلاغ');
+      const slaReference = optionalColumn(rh, 'الوقت المعياري للمعالجة', ['الوقت المعياري', 'معياري']);
+      const sysReference = optionalColumn(rh, 'حالة البلاغ في النظام', ['حالة البلاغ']);
+      /* «المسندة الى» (العمود اللي قبل «اسم الموظف المسند اليه») — بديل إذا الاسم فاضي */
+      const assignedToRef = (rh || []).map(normText).indexOf(normText('المسندة الى'));
+      const solvedRef = optionalColumn(rh, 'تاريخ الحل');
+      const sourceRef = optionalColumn(rh, 'مصدر البلاغ');
+      const reopenRef = optionalColumn(rh, 'هل تمت اعادة فتح البلاغ؟', ['هل تمت اعادة فتح البلاغ', 'اعادة فتح البلاغ']);
+      const empReference = optionalColumn(rh, 'اسم الموظف المسند اليه', ['الموظف المسند اليه', 'المسند اليه', 'اسم الموظف']);
+      const catReference = optionalColumn(rh, 'التصنيف التخصصي', ['التصنيف']);
+      /* عمود «حالة البلاغ» بالضبط (جديد / قيد التنفيذ / مغلق / معاد فتحه) — غير «حالة البلاغ في النظام» */
+      const simpleStatusRef = (rh || []).map(normText).indexOf(normText('حالة البلاغ'));
+      const remReference = optionalColumn(rh, 'الوقت المتبقي', ['الوقت المتبقى', 'المتبقي']);
+      const deptRef = (rh || []).map(normText).indexOf(normText('الإدارة'));
+      const targetRef = optionalColumn(rh, 'الوقت المستهدف لمعالجة البلاغ', ['الوقت المستهدف']);
+      const creationRef = optionalColumn(rh, 'تاريخ الأنشاء', ['تاريخ الإنشاء', 'تاريخ الانشاء']);
+      const munReference = optionalColumn(rh, 'البلدية الفرعية', ['البلديه الفرعيه', 'اسم البلدية', 'البلدية']);
+      levelReference = optionalColumn(rh, 'مستوى اتفاقية الخدمة', ['مستوى اتفاقيه الخدمه', 'مستوى الخدمة', 'اتفاقية الخدمة', 'حالة الالتزام', 'الالتزام']);
+
+      for (let i = rr + 1; i < reference.length; i++) {
+        const row = reference[i] || [];
+        const id = cleanId(cell(row, idReference));
+        if (!id) continue;
+        if (catReference >= 0 && cell(row, catReference)) refCat.set(id, cell(row, catReference));
+        if (slaReference >= 0 && cell(row, slaReference) !== "") {
+          refMap.set(id, extract(cell(row, slaReference)));
+        }
+        newStoredMap[id] = {
+          status: cell(row, sysReference),
+          employee: cell(row, empReference),
+          source: sourceRef >= 0 ? cell(row, sourceRef) : "",
+          solvedTs: solvedRef >= 0 ? parseDateTime(cell(row, solvedRef)) : null,
+          level: cell(row, levelReference),
+          mun: cell(row, munReference),
+          reopened: reopenRef >= 0 && /^نعم|^yes|^true|^1$/i.test(cell(row, reopenRef)),
+          dept: deptRef >= 0 ? cell(row, deptRef) : "",
+          simpleStatus: simpleStatusRef >= 0 ? cell(row, simpleStatusRef) : "",
+          remain: (remReference >= 0 && cell(row, remReference) !== "") ? extract(cell(row, remReference)) : null,
+          /* موعد انتهاء الوقت المعياري = «الوقت المستهدف»، أو تاريخ الإنشاء + المعياري */
+          targetTs: (function () {
+            const t = targetRef >= 0 ? parseDateTime(cell(row, targetRef)) : null;
+            if (t != null) return t;
+            const c = creationRef >= 0 ? parseDateTime(cell(row, creationRef)) : null;
+            const sla = slaReference >= 0 ? extract(cell(row, slaReference)) : 0;
+            return c != null && sla > 0 ? c + sla * 3600000 : null;
+          })()
+        };
+        /* المعاد فتحه: إذا «اسم الموظف المسند اليه» فاضي ناخذ «المسندة الى» */
+        {
+          const R = newStoredMap[id];
+          if (!R.employee && assignedToRef >= 0 && (R.reopened || /^معاد/.test(normText(R.simpleStatus))))
+            R.employee = cell(row, assignedToRef);
+        }
+      }
+    }
+
+    /* ====== ملف الوقت المتبقي (اختياري — الزر الثالث) ====== */
+    const remainInputEl = document.getElementById('remainInput');
+    const remainFile = remainInputEl && remainInputEl.files && remainInputEl.files[0];
+    const newRemainMap = {};
+    if (remainFile) {
+      const rwb = await fileWorkbook(remainFile);
+      const rs = findSheet(rwb, ['رقم البلاغ'], 'ملف الوقت المتبقي');
+      const rm = rs.matrix, rhIdx = rs.headerIndex, rhh = rm[rhIdx];
+      const norm = (rhh || []).map(normText);
+      const exact = n => norm.indexOf(normText(n));
+      const cId = findColumn(rhh, 'رقم البلاغ');
+      const cRem = optionalColumn(rhh, 'الوقت المتبقي', ['الوقت المتبقى']);
+      const cStd = optionalColumn(rhh, 'الوقت المعياري للمعالجة', ['الوقت المعياري']);
+      const cTarget = optionalColumn(rhh, 'الوقت المستهدف لمعالجة البلاغ', ['الوقت المستهدف']);
+      const cCreate = optionalColumn(rhh, 'تاريخ الأنشاء', ['تاريخ الإنشاء', 'تاريخ الانشاء']);
+      const cMun = optionalColumn(rhh, 'البلدية الفرعية', ['البلديه الفرعيه', 'اسم البلدية', 'البلدية']);
+      const cDept = exact('الإدارة');
+      const cSys = optionalColumn(rhh, 'حالة البلاغ في النظام');
+      const cSimple = exact('حالة البلاغ');
+      if (cRem < 0 && cTarget < 0 && cCreate < 0) throw new Error("ملف الوقت المتبقي: لم يتم العثور على عمود «الوقت المتبقي».");
+      for (let i = rhIdx + 1; i < rm.length; i++) {
+        const row = rm[i] || [];
+        const id = cleanId(cell(row, cId));
+        if (!id) continue;
+        const std = cStd >= 0 ? extract(cell(row, cStd)) : 0;
+        let targetTs = cTarget >= 0 ? parseDateTime(cell(row, cTarget)) : null;
+        if (targetTs == null && cCreate >= 0 && std > 0) {
+          const c = parseDateTime(cell(row, cCreate));
+          if (c != null) targetTs = c + std * 3600000;
+        }
+        newRemainMap[id] = {
+          remain: (cRem >= 0 && cell(row, cRem) !== "") ? extract(cell(row, cRem)) : null,
+          targetTs: targetTs, std: std, mun: cell(row, cMun), dept: cDept >= 0 ? cell(row, cDept) : "",
+          status: cell(row, cSys), simpleStatus: cSimple >= 0 ? cell(row, cSimple) : "",
+          file: remainFile.name,
+          /* الصف كامل بكل أعمدته — عشان تصدير Excel يطلع نفس البيانات المرفقة */
+          raw: (rhh || []).reduce((o, h, k) => { const key = String(h || "").trim(); if (key) o[key] = row[k] == null ? "" : row[k]; return o; }, {})
+        };
+      }
+    }
+    let newRemainMeta = { name: "", at: 0 }, remainReused = false;
+    if (remainFile) {
+      /* كل ملف يُرفق يُضاف للمحفوظ: نفس البلاغ يتحدّث من الملف الأحدث، والباقي يبقى */
+      const now = Date.now();
+      const prev = (await kvGet(REMAIN_KEY)) || {};
+      const merged = Object.assign({}, prev.map || {});
+      for (const id in newRemainMap) merged[id] = Object.assign({}, newRemainMap[id], { at: now });
+      const files = (prev.files || []).concat([{ name: remainFile.name, at: now, count: Object.keys(newRemainMap).length }]);
+      newRemainMeta = { name: remainFile.name, at: now };
+      await kvPut(REMAIN_KEY, { map: merged, meta: newRemainMeta, files: files });
+      for (const id in merged) newRemainMap[id] = merged[id];
+      showRemainSavedInfo();
+    } else {
+      /* ما أُرفق ملف وقت متبقي ← نستخدم آخر ملف محفوظ */
+      const savedRemain = await kvGet(REMAIN_KEY);
+      if (savedRemain && savedRemain.map) {
+        Object.assign(newRemainMap, savedRemain.map);
+        newRemainMeta = savedRemain.meta || newRemainMeta;
+        remainReused = true;
+      }
+    }
+    const remainCount = Object.keys(newRemainMap).length;
+
+    /* ====== بناء النتيجة ====== */
+    const result = {};
+    let fromRef = 0;
+    let stdByCat = 0;
+    for (let i = sr + 1; i < source.length; i++) {
+      const row = source[i] || [];
+      const id = cleanId(cell(row, idSource));
+      if (!id) continue;
+      /* عند وجود ملف مرجعي: نحلل فقط البلاغات الموجودة فيه */
+      if (refFile && !newStoredMap[id] && !newRemainMap[id]) continue;
+
+      if (!result[id]) {
+        let std;
+        if (refMap.has(id) && refMap.get(id) > 0) { std = refMap.get(id); fromRef++; }
+        else std = extract(cell(row, stdSource));
+        /* الوقت المعياري فارغ → حسب «التصنيف التخصصي» */
+        let stdFromCat = false;
+        if (!std) {
+          const cat = refCat.get(id) || cell(row, catSource);
+          std = isDamagedCars(cat) ? 2568 : 96;
+          stdByCat++;
+          stdFromCat = true;
+        }
+        result[id] = { std: std, steps: [], hasDelay: false, stdFromCat: stdFromCat,
+                       mun: (newStoredMap[id] && newStoredMap[id].mun) || (newRemainMap[id] && newRemainMap[id].mun) || cell(row, munSource),
+                       /* موجود في ملف الوقت المتبقي ومو في المرجعي ← يظهر في «غير المتأخر» فقط */
+                       remainOnly: !!(refFile && !newStoredMap[id]) };
+      }
+      if (!result[id].mun) result[id].mun = cell(row, munSource);
+      if (!result[id].source) result[id].source = (newStoredMap[id] && newStoredMap[id].source) || cell(row, srcLog);
+      if (!result[id].simple && simpleLog >= 0) result[id].simple = cell(row, simpleLog);
+
+      const text =
+        cell(row, statusCol) + "\n" +
+        cell(row, employeeColIdx) + "\n" +
+        cell(row, referralCol) + "\n" +
+        cell(row, actionColIdx);
+
+      result[id].steps.push({ text: text, hours: extract(cell(row, durationCol)), dept: cell(row, deptSource), deptTo: cell(row, deptToSource),
+                              refTs: parseDateTime(source[i][referralCol]) });
+    }
+
+    /* بلاغات موجودة في ملف المنصة (فيه الوقت المتبقي) وما لها تتبع في السجل: تظهر في «غير المتأخر» */
+    /* بلدي لنس: بلاغات Urbi في المرجعي (غير مغلقة) وما لها تتبع في السجل ← تظهر في بلدي لنس فقط */
+    for (const id in newStoredMap) {
+      const rec = newStoredMap[id];
+      if (result[id] || !/urbi/i.test(String(rec.source || "")) || /^مغلق/.test(normText(rec.simpleStatus || ""))) continue;
+      const std = (refMap.get(id) > 0) ? refMap.get(id) : 96;
+      const rr = newRemainMap[id];
+      let rem = rr && typeof rr.remain === "number" ? rr.remain : (typeof rec.remain === "number" ? rec.remain : null);
+      if (rem == null && typeof rec.targetTs === "number") rem = (rec.targetTs - Date.now()) / 3600000;
+      result[id] = {
+        std: std, hasDelay: rem != null && rem < 0, stdFromCat: false, mun: rec.mun, source: rec.source, simple: rec.simpleStatus, lensOnly: true,
+        steps: [{ text: (rec.status || rec.simpleStatus || "") + "\n⚠️ ما له تتبع في السجل", hours: rem != null ? std - rem : 0,
+                  dept: rec.dept || "", deptTo: rec.dept || "", refTs: null }]
+      };
+    }
+
+    let noLogCount = 0;
+    const noLogSource = remainCount ? newRemainMap : newStoredMap;
+    for (const id in noLogSource) {
+      if (result[id]) continue;
+      const rec = noLogSource[id];
+      if (!remainCount && !(typeof rec.remain === "number" && !isNaN(rec.remain))) continue;
+      let rem = typeof rec.remain === "number" && !isNaN(rec.remain) ? rec.remain
+              : (typeof rec.targetTs === "number" ? (rec.targetTs - Date.now()) / 3600000 : null);
+      if (rem == null) continue;
+      const std = rec.std > 0 ? rec.std : (refMap.get(id) > 0) ? refMap.get(id) : 96;
+      result[id] = {
+        std: std, hasDelay: rem < 0, stdFromCat: false, noLog: true,
+        mun: rec.mun || (newStoredMap[id] && newStoredMap[id].mun) || "",
+        steps: [{ text: (rec.status || rec.simpleStatus || "") + "\n⚠️ ما له تتبع في السجل",
+                  hours: std - rem, dept: rec.dept || "", deptTo: rec.dept || "", refTs: null }]
+      };
+      noLogCount++;
+    }
+
+    let remainOnlyCount = 0;
+    for (const id in result) if (result[id].remainOnly || result[id].lensOnly) remainOnlyCount++;
+    const total = Object.keys(result).length - noLogCount - remainOnlyCount;
+    if (total === 0 && !noLogCount && !remainOnlyCount) throw new Error(refFile
+      ? "لا توجد بلاغات مشتركة بين سجل البلاغات والملف المرجعي. تأكد من عمود «رقم البلاغ» في الملفين."
+      : "لا توجد بلاغات في سجل البلاغات.");
+    const refCount = Object.keys(newStoredMap).length;
+
+    computeDelays(result);
+
+    /* ====== المتأخر / في الميعاد حسب الملف المرجعي (مستوى اتفاقية الخدمة) ====== */
+    let levelNote = "";
+    if (refFile && levelReference >= 0) {
+      const counts = {};
+      let fallback = 0;
+      for (const id in result) {
+        if (ontimeOnly(result[id])) continue;
+        const level = (newStoredMap[id] && newStoredMap[id].level) || "";
+        if (level) {
+          result[id].hasDelay = isLateLevel(level);
+          const key = level + (result[id].hasDelay ? " ← متأخر" : " ← في الميعاد");
+          counts[key] = (counts[key] || 0) + 1;
+        } else {
+          fallback++;
+        }
+      }
+      levelNote = " — المتأخر/الميعاد من المرجعي: " +
+        Object.entries(counts).map(([k, v]) => k + " (" + v + ")").join("، ");
+      if (fallback) levelNote += "، و" + fallback + " بلاغ بدون قيمة في المرجعي حُسب من الساعات";
+    } else if (refFile) {
+      levelNote = " — ⚠️ لم يوجد عمود «مستوى اتفاقية الخدمة» في المرجعي، فحُسب التأخير من الساعات";
+    }
+
+    /* تحديث الصفحة */
+    lastResult = result;
+    storedTableMap = newStoredMap;
+    remainMap = newRemainMap;
+    remainMeta = newRemainMeta;
+    syncRemainSource();
+    storedTableData = Object.keys(newStoredMap);
+    currentView = "all";
+    delayMode = false;
+    ontimeUnder48 = false;
+    setOnTimeUI(false);
+    ontimeUnder48 = false;
+    setOnTimeUI(false);
+    refreshView();
+    if (storedTableData.length) document.getElementById('storageNotice').classList.add('active');
+
+    /* الحفظ في المتصفح */
+    const savedAt = new Date().toLocaleString('ar-SA');
+    const ok = await saveToBrowser({
+      savedAt: savedAt,
+      logName: logFile.name,
+      refName: refFile ? refFile.name : "",
+      result: result,
+      storedTableMap: newStoredMap,
+      remainMap: newRemainMap,
+      remainMeta: newRemainMeta,
+      remainName: remainFile ? remainFile.name : ""
+    });
+
+    let msg = "✅ تم تحليل " + total + " بلاغ";
+    if (refFile) {
+      msg += " من أصل " + refCount + " في الملف المرجعي";
+      if (refCount > total) msg += " (" + (refCount - total) + " بلاغ في المرجعي غير موجود في السجل)";
+    }
+    if (remainCount) msg += (remainReused ? " — ملف الوقت المتبقي المحفوظ («" + newRemainMeta.name + "» — " + fmtDateTime(newRemainMeta.at) + ")" : " — ملف الوقت المتبقي (تم حفظه)") + ": " + remainCount + " بلاغ" + (noLogCount ? "، منها " + noLogCount + " ما لها تتبع في السجل (ما تظهر في التقرير)" : "");
+    else if (noLogCount) msg += " — " + noLogCount + " بلاغ في الملف المرجعي ما له تتبع في السجل (ما يظهر في التقرير)";
+    if (stdByCat) msg += " — " + stdByCat + " بلاغ وقته المعياري فارغ، حُدد من «التصنيف التخصصي» (السيارات التالفة 2568، وغيرها 96)";
+    msg += levelNote;
+
+    msg += ok ? " — وتم الحفظ في المتصفح." : " — ⚠️ لم يتم الحفظ: البيانات أكبر من سعة المتصفح.";
+    setStatus(msg, ok ? 'success' : 'error');
+  } catch (err) {
+    const m = "⚠️ " + (err && err.message ? err.message : err);
+    setStatus(m, 'error');
+    alert(m);
+  } finally {
+    setBusy(false);
+  }
+});
+
+clearSavedButton.addEventListener('click', () => {
+  clearBrowser();
+  document.getElementById('showSavedButton').style.display = 'none';
+  setStatus('🗑️ تم مسح البيانات المحفوظة من المتصفح.', 'info');
+});
+
+/* استرجاع آخر نتيجة محفوظة عند فتح الصفحة */
+/* عند فتح الصفحة لا يُعرض شيء تلقائياً — فقط نبيّن أن هناك تحليلاً محفوظاً */
+(async function checkSaved() {
+  const saved = await loadFromBrowser();
+  if (!saved || !saved.result) return;
+  document.getElementById('showSavedButton').style.display = 'inline-block';
+  setStatus("📂 يوجد تحليل محفوظ (" + (saved.savedAt || "") + ") — اضغط «عرض المحفوظ» لعرضه، أو اختر ملفات جديدة.", 'info');
+})();
+
+async function showSaved() {
+  setStatus('جارٍ تحميل المحفوظ...', 'info');
+  const saved = await loadFromBrowser();
+  if (!saved || !saved.result) { setStatus('لا يوجد تحليل محفوظ.', 'error'); return; }
+  lastResult = saved.result;
+  storedTableMap = saved.storedTableMap || {};
+  remainMap = saved.remainMap || {};
+  remainMeta = saved.remainMeta || { name: "", at: 0 };
+  {
+    const sr = await kvGet(REMAIN_KEY);   /* آخر ملف وقت متبقي محفوظ (أحدث من التحليل) */
+    if (sr && sr.map && sr.meta && sr.meta.at >= (remainMeta.at || 0)) { remainMap = sr.map; remainMeta = sr.meta; }
+  }
+  syncRemainSource();
+  storedTableData = Object.keys(storedTableMap);
+  currentView = "all";
+  delayMode = false;
+  ontimeUnder48 = false;
+  setOnTimeUI(false);
+  refreshView();
+  if (storedTableData.length) document.getElementById('storageNotice').classList.add('active');
+  setStatus("📂 تم عرض التحليل المحفوظ (" + (saved.savedAt || "") + ") — " +
+            (saved.logName || "") + " + " + (saved.refName || ""), 'success');
+}
+
+/* ====== بناء جدول PDF - الجزء العلوي أبيض والسفلي أحمر ====== */
+/* مرحلة البلاغ حالياً: من المرجعي، ثم ملف الوقت المتبقي، ثم آخر خطوة في السجل */
+function currentStage(id, t) {
+  const a = storedTableMap && storedTableMap[id] && storedTableMap[id].status;
+  const b = remainMap && remainMap[id] && remainMap[id].status;
+  return String(a || b || lastStepStatus(t) || "");
+}
+function isClosingStage(id, t) {
+  const v = normText(currentStage(id, t));
+  return /بانتظارالتحقق/.test(v) && /اغلاق/.test(v);
+}
+
+let pdfClosingOnly = false;
+
+/* زر PDF خاص: البلاغات المعروضة اللي مرحلتها حالياً «بانتظار التحقق من إجراء الاغلاق» */
+function exportClosingPDF() {
+  pdfClosingOnly = true;
+  try {
+    const all = getDisplayData();
+    const n = Object.keys(all).filter(id => isClosingStage(id, all[id])).length;
+    if (!n) { alert("⚠️ لا توجد بلاغات مرحلتها حالياً «بانتظار التحقق من إجراء الاغلاق» ضمن المعروض"); return; }
+    recordAlerts(Object.keys(all).filter(id => isClosingStage(id, all[id])));
+    document.getElementById('pdfPrintArea').innerHTML = buildPDFTable();
+  } finally {
+    pdfClosingOnly = false;
+  }
+  setTimeout(function () { printOrPDF("بلاغات_بانتظار_التحقق_من_الاغلاق.pdf"); }, 300);
+}
+
+function buildPDFTable() {
+  let sourceData = getDisplayData();
+  /* زر PDF الخاص: «بانتظار التحقق من إجراء الاغلاق» فقط | زر PDF العادي: كل المعروض ما عداها */
+  {
+    const f = {};
+    for (const id in sourceData) if (pdfAllStages || isClosingStage(id, sourceData[id]) === pdfClosingOnly) f[id] = sourceData[id];
+    sourceData = f;
+  }
+  sourceData = reportFormat(withOpenStep(sourceData));
+  const ids = Object.keys(sourceData);
+
+  if (ids.length === 0) {
+    return "<p style='text-align:center;'>لا توجد بيانات</p>";
+  }
+
+  let maxSteps = 0;
+  for (let id in sourceData) {
+    if (sourceData[id].steps.length > maxSteps) {
+      maxSteps = sourceData[id].steps.length;
+    }
+  }
+
+  /* ترتيب البلاغات حسب البلدية: كل بلدية وتحتها بلاغاتها */
+  const munOf = id => String(sourceData[id].mun || (storedTableMap[id] && storedTableMap[id].mun) || "").trim() || "بدون بلدية";
+  const groups = new Map();
+  ids.forEach(id => {
+    const m = munOf(id);
+    if (!groups.has(m)) groups.set(m, []);
+    groups.get(m).push(id);
+  });
+  const groupNames = [...groups.keys()].sort((a, b) =>
+    (a === "بدون بلدية") - (b === "بدون بلدية") || a.localeCompare(b, 'ar'));
+
+  /* حجم الخط يصغر مع كثرة الخطوات عشان تدخل كل الأعمدة في عرض الورقة */
+  const fs = maxSteps <= 8 ? 7.5 : maxSteps <= 12 ? 6.5 : maxSteps <= 18 ? 5.5 : 4.5;
+  const colCount = maxSteps + 2;
+
+  let fd = filterDescription();
+  if (!pdfClosingOnly && Object.keys(getDisplayData()).length > ids.length) fd = (fd ? fd + ' — ' : '') + 'بدون «بانتظار التحقق من إجراء الاغلاق» (لها PDF خاص)';
+  if (pdfClosingOnly) fd = (fd ? fd + ' — ' : '') + 'مرحلة البلاغ حالياً: بانتظار التحقق من إجراء الاغلاق (' + ids.length + ' بلاغ)';
+  let html = '<h2>📊 تحليل البلاغات' + (fd ? ' — ' + fd : '') + '</h2>';
+  html += '<table style="--pdf-fs:' + fs + 'px;">';
+
+  // رأس الجدول
+  html += '<thead><tr>';
+  html += '<th style="width:8%;">رقم البلاغ</th>';
+  html += '<th style="width:5%;">المعياري</th>';
+  for (let i = 0; i < maxSteps; i++) {
+    html += '<th style="width:' + (87/maxSteps) + '%;">الخطوة ' + (i+1) + '</th>';
+  }
+  html += '</tr></thead>';
+
+  // بيانات الجدول — مجمّعة حسب البلدية
+  groupNames.forEach(mun => {
+  const gIds = groups.get(mun);
+  html += '<tbody class="pdf-mun-group"><tr><td class="pdf-mun" colspan="' + colCount + '">🏛️ ' + mun +
+          ' — ' + gIds.length + ' بلاغ</td></tr></tbody>';
+  gIds.forEach(id => {
+    html += '<tbody class="pdf-ticket">';
+    const ticket = sourceData[id];
+    const steps = ticket.steps;
+    const lastStep = steps[steps.length - 1];
+
+    /* صف البيانات الأول */
+    html += ticket.stdFromCat ? '<tr class="pdf-cat">' : '<tr>';
+    html += '<td class="pdf-id"' + (isReopened(id) ? ' style="background:#ffe0b2 !important;border-right:4px solid #f57c00 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"' : cameFromDept(id) ? ' style="background:#e3f2fd !important;border-right:4px solid #1f6fb2 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"' : '') + '>' + id + platformRemainTag(id) + '</td>';
+    html += '<td class="pdf-std">' + ticket.std + '</td>';
+
+    /* VLOOKUP */
+    let lastStatusInSource = "";
+    if (steps.length > 0) {
+      const lastStepText = steps[lookupIdxOf(steps)].rawStatus || steps[lookupIdxOf(steps)].text || "";
+      lastStatusInSource = lastStepText.split("\n")[0] || "";
+    }
+    const lookupResult = lookupStoredData(id, lastStatusInSource);
+    const hasLookupData = lookupResult.status || lookupResult.employee;
+    let lookupAdded = false;
+
+    for (let i = 0; i < maxSteps; i++) {
+      if (i < steps.length) {
+        const step = steps[i];
+        let showText = true;
+        if (delayMode && step === lastStep && isImportant(step.text)) {
+          showText = false;
+        }
+
+        /* إذا كانت هذه آخر خطوة ولدينا بيانات VLOOKUP */
+        if (i === lookupIdxOf(steps) && hasLookupData && showText && !lookupAdded) {
+          // الجزء العلوي أبيض + الجزء السفلي أحمر في نفس الخلية
+          const topText = step.text.replace(/\n/g, "<br>") + '<br>⏱️ ' + step.hours.toFixed(2) + ' ساعة';
+          const bottomText = '<br>📌 مرحلة البلاغ حالياً:<br>الحالة: ' + (lookupResult.status || "-") + '<br>الموظف: ' + (lookupResult.employee || "-");
+
+          html += '<td style="padding:0 !important; border:0.5px solid #ccc;">' +
+            '<div class="pdf-vlookup-top" style="padding:3px 2px;">' + topText + '</div>' +
+            '<div class="pdf-vlookup-bottom" style="padding:3px 2px;">' + bottomText + '</div>' +
+            '</td>';
+          lookupAdded = true;
+        } else if (step.alert) {
+          html += '<td class="pdf-normal" style="background:#fffde7 !important;border:1px solid #fbc02d !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;">' + step.text.replace(/\n/g, "<br>") + '</td>';
+        } else if (showText) {
+          html += '<td class="pdf-normal">' +
+            step.text.replace(/\n/g, "<br>") + '<br>⏱️ ' + step.hours.toFixed(2) + ' ساعة' + '</td>';
+        } else {
+          html += '<td class="pdf-normal"></td>';
+        }
+      } else {
+        html += '<td class="pdf-normal"></td>';
+      }
+    }
+    html += '</tr>';
+
+    /* صف الساعات */
+    html += ticket.stdFromCat ? '<tr class="pdf-cat">' : '<tr>';
+    html += '<td class="pdf-id"></td>';
+    html += '<td class="pdf-std"></td>';
+
+    let current = ticket.std;
+    const results = steps.map(step => {
+      current -= step.hours;
+      return current;
+    });
+
+    for (let i = 0; i < maxSteps; i++) {
+      if (i < results.length) {
+        const val = Math.abs(results[i]).toFixed(2);
+        if (steps[i].alert) { html += '<td class="pdf-hours" style="background:#fbc02d !important;color:#333 !important;">🔔 ' + steps[i].alertCount + '</td>'; continue; }
+        const isDelayed = isRedCell(ticket, results, i);
+        const text = isDelayed ? '⚠️ تأخير ' + val : '✅ ' + val;
+        html += '<td class="' + (isDelayed ? 'pdf-hours-delay' : 'pdf-hours') + '">' + text + '</td>';
+      } else {
+        html += '<td class="pdf-normal"></td>';
+      }
+    }
+    html += '</tr></tbody>';
+  });
+  });
+
+  html += '</table>';
+  return html;
+}
+
+/* ====== تصدير PDF ====== */
+function exportPDF() {
+  const sourceData = getDisplayData();
+  const ids = Object.keys(sourceData).filter(id => !isClosingStage(id, sourceData[id]));
+
+  if (ids.length === 0) {
+    alert("⚠️ لا توجد بيانات للتصدير");
+    return;
+  }
+
+  recordAlerts(ids);
+  const pdfHtml = buildPDFTable();
+  document.getElementById('pdfPrintArea').innerHTML = pdfHtml;
+
+  setTimeout(function() {
+    printOrPDF("تحليل_البلاغات.pdf");
+  }, 300);
+}
+
+/* تلوين صف Excel كامل بالأخضر الفاتح */
+function paintRowGreen(row) {
+  row.forEach((c, i) => {
+    const st = Object.assign({}, c.s || {});
+    st.fill = { patternType: "solid", fgColor: { rgb: "C8F7C5" } };
+    st.font = Object.assign({}, st.font || {}, { color: { rgb: "1B5E20" } });
+    row[i] = Object.assign({}, c, { s: st });
+  });
+}
+
+/* ====== تصدير Excel - الجزء العلوي أبيض والسفلي أحمر ====== */
+/* الخطوة اللي ينحط فيها «📌 مرحلة البلاغ حالياً»: آخر خطوة غير خانة التنبيهات */
+function lookupIdxOf(steps) {
+  let k = steps.length - 1;
+  if (k > 0 && steps[k].alert) k--;
+  return k;
+}
+
+/* ====== سجل التنبيهات: صف لكل تنبيه ====== */
+function alertRows() {
+  const munOf = id => {
+    const t = lastResult[id], rec = storedTableMap && storedTableMap[id], r = remainMap && remainMap[id];
+    return String((t && t.mun) || (rec && rec.mun) || (r && r.mun) || "").trim() || "بدون بلدية";
+  };
+  const rows = [];
+  for (const id in alertsMap) {
+    const list = alertsMap[id] || [];
+    if (!list.length || !alertApplies(id)) continue;
+    const now = lastResult[id] ? displayRemaining(id) : refRemaining(id);
+    const t = lastResult[id];
+    /* الموظف اللي عنده البلاغ: المسند إليه من المرجعي، وإلا آخر موظف في السجل */
+    const rec = storedTableMap && storedTableMap[id];
+    let emp = rec && rec.employee ? String(rec.employee) : "";
+    if (!emp && t && t.steps.length) emp = String(t.steps[t.steps.length - 1].text || "").split("\n")[1] || "";
+    const ai = t ? arrivalInfo(t) : null;
+    list.forEach((a, k) => rows.push({ emp: emp.trim(), arrRem: ai && ai.fromOther ? ai.rem : null, arrTs: ai && ai.fromOther ? ai.ts : null,
+      id: id, mun: munOf(id), n: k + 1, total: list.length, at: a.at, remain: a.remain,
+      now: now, from: cameFromDept(id), reopened: isReopened(id), stage: lastResult[id] ? currentStage(id, lastResult[id]) : ""
+    }));
+  }
+  rows.sort((a, b) => a.mun.localeCompare(b.mun, 'ar') || a.id.localeCompare(b.id) || a.at - b.at);
+  return rows;
+}
+
+function exportAlertsPDF() {
+  const rows = alertRows();
+  if (!rows.length) { alert("⚠️ ما فيه بلاغات انطبعت وهي غير متأخرة وصارت الحين متأخرة (جديد / قيد التنفيذ / معاد فتحه) وموجودة في ملف الوقت المتبقي المخزن"); return; }
+  const ticketsCount = new Set(rows.map(r => r.id)).size;
+  let html = '<h2>🔔 سجل التنبيهات — ' + ticketsCount + ' بلاغ، ' + rows.length + ' تنبيه — طُبع ' + fmtDateTime(Date.now()) + '</h2>';
+  html += '<table style="--pdf-fs:8px;"><thead><tr>' +
+    ['رقم البلاغ', 'التنبيه', 'تاريخ التنبيه', 'المتبقي وقت التنبيه', 'المتبقي الآن', 'المرحلة الحالية', 'الموظف المتأخر عنده البلاغ', 'ملاحظة']
+      .map(h => '<th>' + h + '</th>').join('') + '</tr></thead>';
+  let mun = null;
+  rows.forEach(r => {
+    if (r.mun !== mun) {
+      mun = r.mun;
+      const n = new Set(rows.filter(x => x.mun === mun).map(x => x.id)).size;
+      html += '<tbody class="pdf-mun-group"><tr><td class="pdf-mun" colspan="8">🏛️ ' + mun + ' — ' + n + ' بلاغ</td></tr></tbody>';
+    }
+    const arr = r.arrRem == null ? '' : (r.arrRem < 0 ? ' — وصلنا متأخر بـ ' + Math.abs(r.arrRem).toFixed(1) + ' س' : ' — وصلنا وباقي على نهاية الوقت المعياري ' + r.arrRem.toFixed(1) + ' س') + (r.arrTs ? ' (' + fmtDateTime(r.arrTs) + ')' : '');
+    const note = [r.from ? '<span style="color:#1f6fb2;font-weight:bold;">↪️ ورد من: ' + r.from + arr + '</span>' : '',
+                  r.reopened ? '<span style="display:inline-block;background:#f57c00;color:#fff;border-radius:5px;padding:1px 6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">' + reopenLabel(r.id) + '</span>' : ''].filter(Boolean).join('<br>');
+    html += '<tbody class="pdf-ticket"><tr>' +
+      '<td class="pdf-id">' + r.id + '</td>' +
+      '<td class="pdf-normal" style="text-align:center !important;">' + r.n + ' من ' + r.total + '</td>' +
+      '<td class="pdf-normal" style="text-align:center !important;">' + fmtDateTime(r.at) + '</td>' +
+      '<td class="pdf-hours">' + (r.remain != null ? r.remain.toFixed(2) + ' ساعة' : '-') + '</td>' +
+      '<td class="' + (r.now != null && r.now < 0 ? 'pdf-hours-delay' : 'pdf-hours') + '">' + (r.now != null ? (r.now < 0 ? '⚠️ تأخير ' + Math.abs(r.now).toFixed(2) : r.now.toFixed(2)) + ' ساعة' : '-') + '</td>' +
+      '<td class="pdf-normal">' + (r.stage || '-') + '</td>' +
+      '<td class="pdf-normal" style="text-align:center !important;font-weight:bold;">👤 ' + (r.emp || '-') + '</td>' +
+      '<td class="pdf-normal"' + (r.reopened ? ' style="background:#ffe0b2 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"' : '') + '>' + (note || '') + '</td></tr></tbody>';
+  });
+  html += '</table>';
+  document.getElementById('pdfPrintArea').innerHTML = html;
+  setTimeout(function () { printOrPDF("سجل_التنبيهات.pdf"); }, 300);
+}
+
+function exportAlertsExcel() {
+  const rows = alertRows();
+  if (!rows.length) { alert("⚠️ ما فيه بلاغات انطبعت وهي غير متأخرة وصارت الحين متأخرة (جديد / قيد التنفيذ / معاد فتحه) وموجودة في ملف الوقت المتبقي المخزن"); return; }
+  const border = { top: { style: "thin", color: { rgb: "BDC3C7" } }, bottom: { style: "thin", color: { rgb: "BDC3C7" } }, left: { style: "thin", color: { rgb: "BDC3C7" } }, right: { style: "thin", color: { rgb: "BDC3C7" } } };
+  const head = { fill: { patternType: "solid", fgColor: { rgb: "2C3E50" } }, font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border: border };
+  const cellS = (rgb, bold) => ({ fill: { patternType: "solid", fgColor: { rgb: rgb } }, font: { bold: !!bold, sz: 11 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border: border });
+  const data = [['البلدية', 'رقم البلاغ', 'التنبيه', 'تاريخ التنبيه', 'المتبقي وقت التنبيه (ساعة)', 'المتبقي الآن (ساعة)', 'المرحلة الحالية', 'الموظف المتأخر عنده البلاغ', 'ورد من إدارة', 'المتبقي عند وصوله لنا (ساعة)', 'معاد فتحه']
+    .map(h => ({ v: h, t: "s", s: head }))];
+  rows.forEach(r => {
+    const bg = r.reopened ? "FFE0B2" : r.from ? "E3F2FD" : "FFFFFF";
+    data.push([
+      { v: r.mun, t: "s", s: cellS(bg) },
+      { v: r.id, t: "s", s: cellS(bg, true) },
+      { v: r.n + " من " + r.total, t: "s", s: cellS(bg) },
+      { v: fmtDateTime(r.at), t: "s", s: cellS(bg) },
+      r.remain != null ? { v: r.remain, t: "n", z: "0.00", s: cellS("D6EAF8", true) } : { v: "-", t: "s", s: cellS(bg) },
+      r.now != null ? { v: Math.round(r.now * 100) / 100, t: "n", z: "0.00", s: cellS(r.now < 0 ? "F5B7B1" : "D5F5E3", true) } : { v: "-", t: "s", s: cellS(bg) },
+      { v: r.stage || "-", t: "s", s: cellS(bg) },
+      { v: r.emp || "-", t: "s", s: cellS(bg, true) },
+      { v: r.from || "", t: "s", s: cellS(bg) },
+      r.arrRem != null ? { v: Math.round(r.arrRem * 10) / 10, t: "n", z: "0.0", s: cellS(bg, true) } : { v: "", t: "s", s: cellS(bg) },
+      { v: r.reopened ? reopenLabel(r.id).replace('🔁 ', '') : "", t: "s", s: cellS(r.reopened ? "F57C00" : bg, r.reopened) }
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 26 }, { wch: 20 }, { wch: 10 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 34 }, { wch: 30 }, { wch: 28 }, { wch: 14 }, { wch: 10 }];
+  ws['!views'] = [{ RTL: true }];
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, "سجل التنبيهات");
+  saveWorkbook(wb, "سجل_التنبيهات.xlsx");
+}
+
+/* حفظ ملف Excel: في الرابط عن طريق خدمة التنزيل، وفي الملف العادي تنزيل مباشر */
+async function saveWorkbook(wb, filename) {
+  await capsPromise;
+  if (CAP.downloads) {
+    try {
+      const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      await CAP.downloads.save({ filename: filename, data: new Blob([buf]) });
+      return true;
+    } catch (e) {
+      downloadError(e);
+      return false;
+    }
+  }
+  XLSX.writeFile(wb, filename);
+  return true;
+}
+
+/* رسالة واضحة إذا التنزيل ممنوع في هذا العرض */
+function downloadError(e) {
+  if (e && e.code === "declined") return;
+  const blocked = !e || ["unavailable", "not_granted", "capability_disabled", "capability_removed", "extension_not_enabled"].includes(e.code);
+  showToast(blocked
+    ? "⚠️ التنزيل مو متاح في هذا العرض للرابط. افتح الرابط من متصفح الكمبيوتر (claude.ai)، أو استخدم ملف الأداة على جوالك للطباعة والتنزيل."
+    : "⚠️ ما قدرت أنزّل الملف: " + ((e && e.message) || e));
+}
+
+/* الطباعة: في الملف العادي نافذة الطباعة، وفي الرابط نولّد PDF صفحة صفحة وننزّله */
+async function printOrPDF(filename) {
+  await capsPromise;
+  if (!CAP.downloads) { window.print(); return; }
+  if (!window.html2canvas || !window.jspdf) { showToast("⚠️ مكتبة PDF ما تحمّلت. تأكد من الإنترنت وحدّث الصفحة."); return; }
+  const src = document.getElementById('pdfPrintArea');
+  if (!src || !src.innerHTML.trim()) return;
+  showToast("⏳ جاري تجهيز ملف PDF...", true);
+  const gen = document.createElement('div');
+  gen.id = 'pdfGenArea';
+  document.body.appendChild(gen);
+  try {
+    const PAGE_W = 1120, PAGE_H = Math.floor(1120 * 202 / 289);   /* A4 بالعرض */
+    gen.innerHTML = '<div class="pdf-page">' + src.innerHTML + '</div>';
+    const page0 = gen.firstChild;
+    /* تقسيم الصفحات: كل عنوان/فقرة وحدة، والجدول يتقسم على صفوفه (tbody) مع تكرار رأسه */
+    let root = page0;
+    while (root.children.length === 1 && root.firstElementChild.tagName === 'DIV' && !root.firstElementChild.classList.contains('pdf-newpage')) root = root.firstElementChild;
+    const rootClass = root === page0 ? '' : (root.getAttribute('class') || '');
+    const wmEl = src.querySelector('.lens-wm');
+    const wmHtml = wmEl ? '<div class="lens-wm-abs">' + wmEl.textContent + '</div>' : '';   /* مثل pdf-summary — نحافظ عليه في كل صفحة */
+    const units = [];
+    Array.from(root.children).forEach(el => {
+      if (el.classList.contains('pdf-newpage')) { units.push({ brk: true }); return; }
+      /* جدول التلخيص الأول يبقى كامل في صفحته (ما يتقسم) */
+      if (el.tagName === 'TABLE' && el.classList.contains('sum-main')) { units.push({ html: el.outerHTML, h: el.offsetHeight, keep: true }); return; }
+      if (el.tagName === 'TABLE') {
+        const tStyle = el.getAttribute('style') || '', tClass = el.getAttribute('class') || '';
+        const head = el.tHead ? el.tHead.outerHTML : '', headH = el.tHead ? el.tHead.offsetHeight : 0;
+        let parts = Array.from(el.tBodies);
+        if (parts.length <= 1 && parts[0]) parts = Array.from(parts[0].rows);
+        if (!parts.length) { units.push({ html: el.outerHTML, h: el.offsetHeight }); return; }
+        parts.forEach(p => units.push({ table: el, tStyle: tStyle, tClass: tClass, head: head, headH: headH, html: p.tagName === 'TR' ? '<tbody>' + p.outerHTML + '</tbody>' : p.outerHTML, h: p.offsetHeight, mun: p.classList && p.classList.contains('pdf-mun-group') }));
+      } else units.push({ html: el.outerHTML, h: el.offsetHeight + 6 });
+    });
+    const pages = [];
+    let cur = '', h = 0, openT = null;
+    const closeT = () => { if (openT) { cur += '</table>'; openT = null; } };
+    const newPage = () => { closeT(); if (cur) pages.push(cur); cur = ''; h = 0; };
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      if (u.brk) { newPage(); continue; }
+      const need = u.h + (u.table && openT !== u.table ? u.headH : 0);
+      /* شريط البلدية ما يبقى آخر الصفحة لحاله */
+      const extra = u.mun && units[i + 1] ? units[i + 1].h : 0;
+      if (h > 0 && h + need + extra > PAGE_H - 12 && !u.keep) newPage();   /* جدول التلخيص يبقى مع عنوانه (ويتصغّر لو لزم) */
+      if (u.table) {
+        if (openT !== u.table) { closeT(); cur += '<table class="' + u.tClass + '" style="' + u.tStyle + '">' + u.head; openT = u.table; h += u.headH; }
+        cur += u.html; h += u.h;
+      } else { closeT(); cur += u.html; h += u.h; }
+    }
+    newPage();
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    for (let p = 0; p < pages.length; p++) {
+      showToast("⏳ جاري تجهيز ملف PDF... صفحة " + (p + 1) + " من " + pages.length, true);
+      gen.innerHTML = '<div class="pdf-page">' + wmHtml + '<div class="' + rootClass + '">' + pages[p] + '</div></div>';
+      const canvas = await window.html2canvas(gen.firstChild, { scale: 3, backgroundColor: '#ffffff', logging: false, letterRendering: false });
+      let w = 289, hmm = canvas.height / canvas.width * 289;
+      if (hmm > 202) { w = w * 202 / hmm; hmm = 202; }
+      if (p > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 4 + (289 - w) / 2, 4, w, hmm);
+    }
+    hideToast();
+    await CAP.downloads.save({ filename: filename, data: pdf.output('blob') });
+  } catch (e) {
+    if (e && e.code) downloadError(e);
+    else showToast("⚠️ ما قدرت أجهّز PDF: " + ((e && e.message) || e));
+  } finally {
+    gen.remove();
+  }
+}
+
+/* محتوى خانات الخطوات في PDF وExcel حسب الاختيارات:
+   الحالة / الأسماء / الإدارة قبل وبعد / التواريخ.
+   الأسماء بدون تأشير: يظهر اسم آخر خطوة بس (اللي عنده البلاغ حالياً) */
+function reportFormat(data) {
+  const on = id => { const el = document.getElementById(id); return el ? el.checked : true; };
+  const showStatus = on('showStatusBox'), showNames = on('showNamesBox'), showDept = on('showDeptBox'), showDates = on('showDatesBox');
+  const out = {};
+  for (const id in data) {
+    const t = data[id];
+    if (t.noLog) { out[id] = t; continue; }
+    let lastReal = t.steps.length - 1;
+    while (lastReal > 0 && (t.steps[lastReal].open || t.steps[lastReal].alert)) lastReal--;
+    out[id] = Object.assign({}, t, { steps: t.steps.map((st, i) => {
+      if (st.alert) return st;
+      if (st.open) return st.holder ? Object.assign({}, st, { text: st.text + "\n👤 عنده البلاغ: " + st.holder }) : st;
+      const L = String(st.origText || st.text || "").split("\n");
+      const status = L[0] || "", name = L[1] || "", ref = L[2] || "", act = L[3] || "";
+      const lines = [];
+      if (showStatus && status) lines.push(status);
+      if ((showNames || i === lastReal) && name) lines.push("👤 " + name);
+      if (showDept && (st.dept || st.deptTo)) {
+        lines.push("🏢 قبل: " + (st.dept || "-"));
+        lines.push("🏢 بعد: " + (st.deptTo || "-"));
+      }
+      if (showDates) { if (ref) lines.push(ref); if (act) lines.push(act); }
+      if (st.holder) lines.push("👤 عنده البلاغ: " + st.holder);
+      return Object.assign({}, st, { text: lines.join("\n") || "-", rawStatus: status });
+    }) });
+  }
+  return out;
+}
+
+/* ====== التلخيص ======
+   الوصول للنظافة: من إدارة أخرى = لحظة إحالتها للنظافة، وغير كذا = إنشاء البلاغ.
+   المتبقي لحظة الوصول = المعياري − الساعات قبل الوصول.
+   الدوام 5 الصبح إلى 6 المساء: «باقي على نهاية الدوام» = 18 − ساعة الوصول (مقرّب لفوق) */
+const SHIFT_START = 5, SHIFT_END = 18;
+function arrivalInfo(t) {
+  const st = t.steps;
+  const hasTo = st.some(x => x.deptTo);
+  let k = -1;
+  for (let i = st.length - 1; i >= 0; i--) {
+    if (st[i].dept && !isCleaningDept(st[i].dept) && (hasTo ? (st[i].deptTo && isCleaningDept(st[i].deptTo)) : st.some(x => isCleaningDept(x.dept)))) { k = i; break; }
+  }
+  if (k < 0) return { fromOther: false, rem: t.std, ts: st.length ? st[0].refTs : null };
+  let used = 0;
+  for (let i = 0; i <= k; i++) used += st[i].hours || 0;
+  let ts = st[k + 1] ? st[k + 1].refTs : null;
+  if (ts == null) ts = parseDateTime((String(st[k].text || "").split("\n")[3]) || "");
+  return { fromOther: true, rem: t.std - used, ts: ts, k: k, used: used };
+}
+/* البلاغ اللي يرد بعد نهاية الدوام (6 المساء) أو قبل بدايته (5 الصبح):
+   كم ساعة باقية على بداية الدوام الجاي (مقرّب لفوق) — من 11 إلى 1. اللي يرد خلال الدوام = "x" */
+function shiftBucket(ts) {
+  if (ts == null) return "x";
+  const d = new Date(ts), h = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+  if (h >= SHIFT_START && h < SHIFT_END) return "x";
+  const left = (SHIFT_START - h + 24) % 24;          /* مثلاً 7 المساء ← 10 ساعات لين 5 الصبح */
+  return String(Math.min(11, Math.max(1, Math.ceil(left))));
+}
+const SHIFT_COLS = ["11","10","9","8","7","6","5","4","3","2","1","x"];
+
+function summaryData() {
+  const rows = {}, mk = () => ({ total: 0, late: 0, other: 0, u48: 0, a: 0, b: 0, c: 0, d: 0, m72: 0, sh: Object.fromEntries(SHIFT_COLS.map(k => [k, 0])) });
+  const all = mk();
+  /* المتبقي بعد نهاية الدوام لكل عمود: المتبقي لحظة الوصول − ساعات العمود (خارج الدوام بدون خصم) */
+  const after = Object.fromEntries(SHIFT_COLS.map(k => [k, { min: null, max: null }]));
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (ontimeOnly(t)) continue;
+    const mun = String(t.mun || (storedTableMap[id] && storedTableMap[id].mun) || "").trim() || "بدون بلدية";
+    const R = rows[mun] || (rows[mun] = mk());
+    const info = arrivalInfo(t);
+    [R, all].forEach(x => {
+      x.total++;
+      if (t.hasDelay) x.late++;
+      if (info.fromOther) x.other++;
+      const r = info.rem;
+      if (r < 48) {
+        x.u48++;
+        if (r < 5) x.a++; else if (r < 15) x.b++; else if (r < 24) x.c++; else x.d++;
+      } else if (r < 72) {
+        x.m72++;
+        const bk = shiftBucket(info.ts);
+        x.sh[bk]++;
+        if (x === all) {
+          const v = r - (bk === "x" ? 0 : Number(bk)), A = after[bk];
+          if (A.min == null || v < A.min) A.min = v;
+          if (A.max == null || v > A.max) A.max = v;
+        }
+      }
+    });
+  }
+  const names = Object.keys(rows).sort((a, b) => (a === "بدون بلدية") - (b === "بدون بلدية") || a.localeCompare(b, 'ar'));
+  return { names, rows, all, after };
+}
+
+function shiftColsOn() { const el = document.getElementById('showShiftCols'); return !el || el.checked; }
+
+function summaryHTML() {
+  const D = summaryData();
+  const SC = shiftColsOn() ? SHIFT_COLS : [];
+  const th = (t, extra) => '<th style="background:#2c3e50;color:#fff;border:1px solid #999;padding:4px 3px;font-size:10px;' + (extra || '') + '">' + t + '</th>';
+  const thS = (t, bg) => '<th style="background:' + bg + ';color:#fff;border:1px solid #999;padding:3px 2px;font-size:9px;">' + t + '</th>';
+  const td = (v, bg, bold) => '<td style="border:1px solid #ccc;padding:4px 2px;text-align:center;font-size:10px;background:' + (bg || '#fff') + ';' + (bold ? 'font-weight:bold;' : '') + '">' + v + '</td>';
+  let h = '<h2 style="text-align:center;color:#2c3e50;font-size:15px;margin:0 0 8px;">📊 تلخيص البلاغات — ' + fmtDateTime(Date.now()) + '</h2>';
+  h += '<table class="sum-main" style="width:100%;border-collapse:collapse;direction:rtl;-webkit-print-color-adjust:exact;print-color-adjust:exact;">';
+  h += '<tr>' + th('البلدية', '') .replace('<th', '<th rowspan="2"') + th('عدد البلاغات الواردة للإدارة').replace('<th', '<th rowspan="2"') +
+       th('عدد البلاغات المتأخرة').replace('<th', '<th rowspan="2"') + th('عدد البلاغات الواردة من إدارات أخرى').replace('<th', '<th rowspan="2"') +
+       th('وردت للإدارة ومتبقي لها من الوقت المعياري أقل من 48 ساعة', 'background:#e67e22;').replace('<th', '<th colspan="5"') +
+       th(SC.length ? 'وردت للإدارة ومتبقي لها من الوقت المعياري من 48 إلى أقل من 72 ساعة — مقسّمة حسب الساعات الباقية على بداية الدوام (الدوام من 5 الصبح إلى 6 المساء)' : 'وردت للإدارة ومتبقي لها من الوقت المعياري من 48 إلى أقل من 72 ساعة', 'background:#11998e;').replace('<th', '<th colspan="' + (SC.length + 1) + '"') + '</tr>';
+  h += '<tr>' + thS('الإجمالي', '#d35400') + thS('متبقي أقل من 5 ساعات', '#e67e22') + thS('متبقي من 5 إلى أقل من 15 ساعة', '#e67e22') +
+       thS('متبقي من 15 إلى أقل من 24 ساعة', '#e67e22') + thS('متبقي من 24 إلى أقل من 48 ساعة', '#e67e22') +
+       thS('الإجمالي', '#0e7c72') + SC.map(k => thS(k === 'x' ? 'وردت خلال الدوام' : 'باقي على بداية الدوام ' + k + (Number(k) <= 10 && Number(k) > 2 ? ' ساعات' : ' ساعة'), '#11998e')).join('') + '</tr>';
+  const row = (name, x, bg) => '<tr>' + td(name, bg || '#ecf0f1', true) + td(x.total, bg, true) + td(x.late, bg || '#fdecea', true) + td(x.other, bg || '#fff3e0', true) +
+    td(x.u48, bg || '#fde3cf', true) + td(x.a, bg) + td(x.b, bg) + td(x.c, bg) + td(x.d, bg) +
+    td(x.m72, bg || '#d5f5e3', true) + SC.map(k => td(x.sh[k], bg)).join('') + '</tr>';
+  D.names.forEach(n => { h += row('🏛️ ' + n, D.rows[n]); });
+  h += row('الإجمالي', D.all, '#d6eaf8');
+  const rng = A => A.min == null ? '-' : (A.min.toFixed(1) === A.max.toFixed(1) ? A.min.toFixed(1) + ' ساعة' : 'من ' + A.min.toFixed(1) + '<br>إلى ' + A.max.toFixed(1) + ' ساعة');
+  if (SC.length) h += '<tr>' + td('⏳ كم يبقى لهذي البلاغات من الوقت المعياري عند بداية الدوام (أقل بلاغ – أكثر بلاغ) ←', '#fff8e1', true).replace('<td', '<td colspan="10"') +
+       SC.map(k => td(rng(D.after[k]), '#fff8e1', true)).join('') + '</tr>';
+  h += '</table>';
+  h += '<p style="font-size:9px;color:#555;margin-top:6px;">' + (SC.length ? '* الصف الأصفر: ناخذ المتبقي للبلاغ لحظة وروده ونخصم منه الساعات الباقية على بداية الدوام (مثلاً بلاغ ورد الساعة 7 المساء، يعني باقي على بداية الدوام 10 ساعات، ومتبقي له 60 ساعة ← عند بداية الدوام يبقى له 50 ساعة). «خلال الدوام» بدون خصم.<br>' : '') + '* المتبقي لحظة الوصول = الوقت المعياري ناقص الساعات اللي مرت قبل ما يوصل البلاغ للنظافة. البلاغ اللي جا من إدارة ثانية وقت وصوله هو لحظة إحالته للنظافة، وغيره وقت إنشائه. «أقل من 5» تشمل اللي وصل وهو متأخر.</p>';
+  h += summaryDetailsHTML();
+  return h;
+}
+
+/* ====== تفاصيل البلاغات اللي وردت من إدارات أخرى وباقي لها أقل من 48 ساعة ====== */
+function shortDept(d) { return String(d || "").replace(/^الإدارة العامة (لل|ل)?/, "").trim() || String(d || ""); }
+function summaryDetails() {
+  const list = [];
+  for (const id in lastResult) {
+    const t = lastResult[id];
+    if (ontimeOnly(t)) continue;
+    const info = arrivalInfo(t);
+    if (!info.fromOther || !(info.rem < 48)) continue;
+    /* التتبع المختصر: الإدارات قبل الوصول بالترتيب مع ساعات المكث في كل وحدة */
+    const chain = [];
+    for (let i = 0; i <= info.k; i++) {
+      const d = t.steps[i].dept || "غير محدد";
+      const last = chain[chain.length - 1];
+      if (last && last.d === d) last.h += t.steps[i].hours || 0;
+      else chain.push({ d: d, h: t.steps[i].hours || 0 });
+    }
+    list.push({ id: id, mun: String(t.mun || (storedTableMap[id] && storedTableMap[id].mun) || "").trim() || "بدون بلدية",
+      from: t.steps[info.k].dept, chain: chain, stay: info.used, rem: info.rem, ts: info.ts, std: t.std });
+  }
+  list.sort((a, b) => a.rem - b.rem);
+  const byDept = {};
+  list.forEach(x => {
+    const D = byDept[x.from] || (byDept[x.from] = { n: 0, stay: 0, min: null });
+    D.n++; D.stay += x.stay; if (D.min == null || x.rem < D.min) D.min = x.rem;
+  });
+  return { list, byDept };
+}
+
+function summaryDetailsHTML() {
+  const S = summaryDetails();
+  if (!S.list.length) return "";
+  const th = t => '<th style="background:#e67e22;color:#fff;border:1px solid #999;padding:4px 3px;font-size:10px;">' + t + '</th>';
+  const td = (v, extra) => '<td style="border:1px solid #ccc;padding:4px 3px;font-size:10px;text-align:center;' + (extra || '') + '">' + v + '</td>';
+  const remTxt = r => r < 0 ? '⚠️ وصل متأخر بـ ' + Math.abs(r).toFixed(1) + ' س' : r.toFixed(1) + ' س';
+  let h = '<div class="pdf-newpage" style="margin-top:14px;"></div>';
+  h += '<h2 style="text-align:center;color:#2c3e50;font-size:14px;margin:6px 0;">↪️ الإدارات اللي وردت منها البلاغات وباقي لها أقل من 48 ساعة (' + S.list.length + ' بلاغ)</h2>';
+  h += '<table style="width:100%;border-collapse:collapse;direction:rtl;margin-bottom:10px;"><thead><tr>' +
+       th('الإدارة اللي أحالته لنا') + th('عدد البلاغات') + th('متوسط مدة المكث قبل الوصول') + th('الوقت المتبقي لنهاية الزمن المعياري') + '</tr></thead>';
+  Object.keys(S.byDept).sort((a, b) => S.byDept[b].n - S.byDept[a].n).forEach(d => {
+    const D = S.byDept[d];
+    h += '<tbody><tr>' + td(d, 'font-weight:bold;background:#fff3e0;') + td(D.n, 'font-weight:bold;') + td((D.stay / D.n).toFixed(1) + ' س') + td(remTxt(D.min)) + '</tr></tbody>';
+  });
+  h += '</table>';
+  h += '<table style="width:100%;border-collapse:collapse;direction:rtl;"><thead><tr>' +
+       th('رقم البلاغ') + th('البلدية') + th('التتبع قبل الوصول لنا (الإدارة: ساعات المكث)') + th('مدة المكث حتى وصلنا') +
+       th('وقت الإحالة لنا') + th('المتبقي عند الإحالة لنا حتى يتجاوز الوقت المعياري') + '</tr></thead>';
+  S.list.forEach(x => {
+    const chain = x.chain.map(c => shortDept(c.d) + ': ' + c.h.toFixed(1) + ' س').join(' ← ');
+    h += '<tbody><tr>' + td(x.id, 'font-weight:bold;background:#ecf0f1;') + td(x.mun.replace(/^بلدية /, '')) + td(chain, 'text-align:right;') +
+         td(x.stay.toFixed(1) + ' س') + td(x.ts ? fmtDateTime(x.ts) : '-') +
+         td(remTxt(x.rem), 'font-weight:bold;background:' + (x.rem < 5 ? '#fdecea' : x.rem < 24 ? '#fff3e0' : '#e8f8f5') + ';') + '</tr></tbody>';
+  });
+  h += '</table>';
+  return h;
+}
+
+function toggleSummary() {
+  const box = document.getElementById('summaryBox');
+  if (!Object.keys(lastResult).length) { showToast("⚠️ اضغط «إنشاء وحفظ» أو «عرض المحفوظ» أول"); return; }
+  const open = box.style.display === 'none';
+  box.style.display = open ? 'block' : 'none';
+  if (open) { document.getElementById('summaryTable').innerHTML = summaryHTML(); box.scrollIntoView({ behavior: 'smooth' }); }
+}
+
+function exportSummaryPDF() {
+  if (!Object.keys(lastResult).length) return;
+  /* طباعة التلخيص بالطول (A4 عمودي) والجدول الأول يعبّي الصفحة */
+  if (!CAP.downloads) {
+    let st = document.getElementById('sumPageStyle');
+    if (!st) { st = document.createElement('style'); st.id = 'sumPageStyle'; document.head.appendChild(st); }
+    /* بدون أعمدة الدوام: بالطول | معها (أعمدة كثيرة): بالعرض */
+    const wide = shiftColsOn();
+    st.textContent = wide ? '@page { size: A4 landscape; margin: 4mm; }' : '@page { size: A4 portrait; margin: 6mm; }';
+    document.body.classList.add(wide ? 'sum-print-wide' : 'sum-print');
+    const done = () => { st.textContent = ''; document.body.classList.remove('sum-print', 'sum-print-wide'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(done, 120000);
+  }
+  document.getElementById('pdfPrintArea').innerHTML = '<div class="pdf-summary">' + summaryHTML() + '</div>';
+  setTimeout(function () { printOrPDF("تلخيص_البلاغات.pdf"); }, 300);
+}
+
+function exportSummaryExcel() {
+  if (!Object.keys(lastResult).length) return;
+  const D = summaryData();
+  const SC = shiftColsOn() ? SHIFT_COLS : [];
+  const border = { top: { style: "thin", color: { rgb: "BDC3C7" } }, bottom: { style: "thin", color: { rgb: "BDC3C7" } }, left: { style: "thin", color: { rgb: "BDC3C7" } }, right: { style: "thin", color: { rgb: "BDC3C7" } } };
+  const H = rgb => ({ fill: { patternType: "solid", fgColor: { rgb: rgb } }, font: { bold: true, color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border: border });
+  const C = (rgb, b) => ({ fill: { patternType: "solid", fgColor: { rgb: rgb || "FFFFFF" } }, font: { bold: !!b }, alignment: { horizontal: "center", vertical: "center" }, border: border });
+  const e = s2 => ({ v: "", t: "s", s: s2 });
+  const r1 = [{ v: "البلدية", t: "s", s: H("2C3E50") }, { v: "عدد البلاغات الواردة للإدارة", t: "s", s: H("2C3E50") }, { v: "عدد البلاغات المتأخرة", t: "s", s: H("2C3E50") }, { v: "عدد البلاغات الواردة من إدارات أخرى", t: "s", s: H("2C3E50") },
+    { v: "وردت للإدارة ومتبقي لها من الوقت المعياري أقل من 48 ساعة", t: "s", s: H("E67E22") }, e(H("E67E22")), e(H("E67E22")), e(H("E67E22")), e(H("E67E22")),
+    { v: SC.length ? "وردت للإدارة ومتبقي لها من الوقت المعياري من 48 إلى أقل من 72 ساعة — مقسّمة حسب الساعات الباقية على بداية الدوام (5 الصبح إلى 6 المساء)" : "وردت للإدارة ومتبقي لها من الوقت المعياري من 48 إلى أقل من 72 ساعة", t: "s", s: H("11998E") }].concat(SC.map(() => e(H("11998E"))));
+  const r2 = [e(H("2C3E50")), e(H("2C3E50")), e(H("2C3E50")), e(H("2C3E50"))].concat(
+    ["الإجمالي", "متبقي أقل من 5 ساعات", "متبقي من 5 إلى أقل من 15 ساعة", "متبقي من 15 إلى أقل من 24 ساعة", "متبقي من 24 إلى أقل من 48 ساعة"].map(v => ({ v: v, t: "s", s: H("E67E22") })),
+    [{ v: "الإجمالي", t: "s", s: H("11998E") }], SC.map(k => ({ v: k === "x" ? "وردت خلال الدوام" : "باقي على بداية الدوام " + k + " ساعة", t: "s", s: H("11998E") })));
+  const row = (name, x, bg) => [{ v: name, t: "s", s: C(bg || "ECF0F1", true) }].concat(
+    [x.total, x.late, x.other, x.u48, x.a, x.b, x.c, x.d, x.m72].concat(SC.map(k => x.sh[k])).map((v, i) => ({ v: v, t: "n", s: C(bg, i === 0 || i === 3 || i === 8) })));
+  const rng = A => A.min == null ? "-" : (A.min.toFixed(1) === A.max.toFixed(1) ? A.min.toFixed(1) + " ساعة" : "من " + A.min.toFixed(1) + " إلى " + A.max.toFixed(1) + " ساعة");
+  const afterRow = [{ v: "⏳ كم يبقى لهذي البلاغات من الوقت المعياري عند بداية الدوام (أقل بلاغ – أكثر بلاغ)", t: "s", s: C("FFF8E1", true) }].concat(
+    Array(9).fill(0).map(() => ({ v: "", t: "s", s: C("FFF8E1") })), SC.map(k => ({ v: rng(D.after[k]), t: "s", s: C("FFF8E1", true) })));
+  const data = [r1, r2].concat(D.names.map(n => row(n, D.rows[n])), [row("الإجمالي", D.all, "D6EAF8")], SC.length ? [afterRow] : []);
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const lastR = data.length - 1;
+  ws['!merges'] = [0, 1, 2, 3].map(c => ({ s: { r: 0, c: c }, e: { r: 1, c: c } })).concat([{ s: { r: 0, c: 4 }, e: { r: 0, c: 8 } }, ].concat(SC.length ? [{ s: { r: 0, c: 9 }, e: { r: 0, c: 9 + SC.length } }] : [], SC.length ? [{ s: { r: lastR, c: 0 }, e: { r: lastR, c: 9 } }] : []));
+  ws['!cols'] = [{ wch: 26 }, { wch: 12 }, { wch: 10 }, { wch: 14 }].concat(Array(6 + SC.length).fill({ wch: 11 }));
+  ws['!views'] = [{ RTL: true }];
+  const wb = XLSX.utils.book_new();
+  wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, "التلخيص");
+  saveWorkbook(wb, "تلخيص_البلاغات.xlsx");
+}
+
+function excelTags(id) {
+  return String(platformRemainTag(id)).replace(/<br>/g, "\n").replace(/<[^>]+>/g, "");
+}
+
+function exportExcel() {
+  /* التنبيه يُسجَّل أيضاً عند تصدير Excel (إذا مربع التنبيه مؤشَّر) */
+  const shownIds = Object.keys(getDisplayData());
+  if (shownIds.length) recordAlerts(shownIds);
+  const sourceData = reportFormat(withOpenStep(getDisplayData()));
+  const ids = Object.keys(sourceData);
+
+  if (ids.length === 0) {
+    alert("⚠️ لا توجد بيانات للتصدير");
+    return;
+  }
+
+  let maxSteps = 0;
+  for (let id in sourceData) {
+    if (sourceData[id].steps.length > maxSteps) {
+      maxSteps = sourceData[id].steps.length;
+    }
+  }
+
+  const border = { top: { style: "thin", color: { rgb: "BDC3C7" } }, bottom: { style: "thin", color: { rgb: "BDC3C7" } }, left: { style: "thin", color: { rgb: "BDC3C7" } }, right: { style: "thin", color: { rgb: "BDC3C7" } } };
+  const headStyle = { fill: { patternType: "solid", fgColor: { rgb: "2C3E50" } }, font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 }, alignment: { horizontal: "center", vertical: "center", wrapText: true } };
+  const emptyCell = { v: "", t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "FAFAFA" } }, border: border } };
+
+  const excelData = [];
+
+  const headerRow = [
+    { v: "رقم البلاغ", t: "s", s: headStyle },
+    { v: "المعياري", t: "s", s: headStyle }
+  ];
+  for (let i = 0; i < maxSteps; i++) {
+    headerRow.push({ v: "الخطوة " + (i + 1), t: "s", s: headStyle });
+  }
+  excelData.push(headerRow);
+
+  ids.forEach(id => {
+    const ticket = sourceData[id];
+    const steps = ticket.steps;
+    const lastStep = steps[steps.length - 1];
+
+    const row1 = [
+      { v: id + excelTags(id), t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: isReopened(id) ? "FFE0B2" : cameFromDept(id) ? "E3F2FD" : "ECF0F1" } }, font: { bold: true, sz: 11 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border: border } },
+      { v: ticket.std, t: "n", s: { fill: { patternType: "solid", fgColor: { rgb: "F39C12" } }, font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, border: border } }
+    ];
+
+    let lastStatusInSource = "";
+    if (steps.length > 0) {
+      const lastStepText = steps[lookupIdxOf(steps)].rawStatus || steps[lookupIdxOf(steps)].text || "";
+      lastStatusInSource = lastStepText.split("\n")[0] || "";
+    }
+
+    const lookupResult = lookupStoredData(id, lastStatusInSource);
+    const hasLookupData = lookupResult.status || lookupResult.employee;
+    let lookupAdded = false;
+
+    for (let i = 0; i < maxSteps; i++) {
+      if (i < steps.length) {
+        const step = steps[i];
+        let showText = true;
+        if (delayMode && step === lastStep && isImportant(step.text)) {
+          showText = false;
+        }
+
+        /* إذا كانت هذه آخر خطوة ولدينا بيانات VLOOKUP */
+        if (i === lookupIdxOf(steps) && hasLookupData && showText && !lookupAdded) {
+          const topText = step.text + "\n" + step.hours.toFixed(2) + " ساعة";
+          const bottomText = "\n📌 مرحلة البلاغ حالياً:" +
+            "\nالحالة: " + (lookupResult.status || "-") +
+            "\nالموظف: " + (lookupResult.employee || "-");
+
+          // في Excel لا يمكن تلوين نصفي الخلية بلونين، فنستخدم خلفية حمراء خفيفة مع نص أحمر داكن
+          row1.push({
+            v: topText + bottomText,
+            t: "s",
+            s: {
+              fill: { patternType: "solid", fgColor: { rgb: "FAFAFA" } },
+              font: { sz: 10 },
+              alignment: { horizontal: "right", vertical: "top", wrapText: true },
+              border: border
+            }
+          });
+          lookupAdded = true;
+        } else if (step.alert) {
+          row1.push({ v: step.text, t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "FFFDE7" } }, font: { sz: 10, bold: true }, alignment: { horizontal: "right", vertical: "top", wrapText: true }, border: border } });
+        } else if (showText) {
+          row1.push({ v: step.text + "\n" + step.hours.toFixed(2) + " ساعة", t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "FAFAFA" } }, font: { sz: 10 }, alignment: { horizontal: "right", vertical: "top", wrapText: true }, border: border } });
+        } else {
+          row1.push(emptyCell);
+        }
+      } else {
+        row1.push(emptyCell);
+      }
+    }
+
+    if (ticket.stdFromCat) paintRowGreen(row1);
+    excelData.push(row1);
+
+    const row2 = [
+      { v: "", t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "ECF0F1" } }, border: border } },
+      { v: "", t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "F39C12" } }, border: border } }
+    ];
+
+    let current = ticket.std;
+    const results = steps.map(step => {
+      current -= step.hours;
+      return current;
+    });
+
+    for (let i = 0; i < maxSteps; i++) {
+      if (i < results.length) {
+        const val = Math.abs(results[i]).toFixed(2);
+        if (steps[i].alert) { row2.push({ v: "🔔 " + steps[i].alertCount, t: "s", s: { fill: { patternType: "solid", fgColor: { rgb: "FBC02D" } }, font: { bold: true, sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: border } }); continue; }
+        const isDelayed = isRedCell(ticket, results, i);
+        const bgColor = isDelayed ? "E74C3C" : "3498DB";
+        const text = isDelayed ? "تأخير " + val : val;
+
+        row2.push({
+          v: text,
+          t: "s",
+          s: {
+            fill: { patternType: "solid", fgColor: { rgb: bgColor } },
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: border
+          }
+        });
+      } else {
+        row2.push(emptyCell);
+      }
+    }
+
+    if (ticket.stdFromCat) paintRowGreen(row2);
+    excelData.push(row2);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+  const wscols = [{ wch: 18 }, { wch: 12 }];
+  for (let i = 0; i < maxSteps; i++) {
+    wscols.push({ wch: 40 });
+  }
+  ws['!cols'] = wscols;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "البلاغات");
+
+  saveWorkbook(wb, "تحليل_البلاغات.xlsx");
+}
+syncRemainSource();
+</script>
+
+</body>
+</html>
